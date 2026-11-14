@@ -405,7 +405,7 @@ io.on("connection", socket => {
       const currentRoom = rooms.get(room.code);
       const currentPlayer = currentRoom?.players.get(socket.id);
       if (currentRoom && currentPlayer && currentPlayer.sessionToken === token) removePlayer(currentRoom, socket.id);
-    }, 60000);
+    }, 300000);
   });
 });
 
