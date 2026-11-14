@@ -33,9 +33,14 @@ function renderRoom() {
   $("inviteCode").textContent = room.code;
   $("gameRoomCode").textContent = room.code;
   $("playerCount").textContent = `${room.players.length}/10`;
+  $("pauseOverlay").classList.toggle("hidden", !room.paused);
+  $("endEarlyBtn").classList.toggle("hidden", !room.paused || room.hostId !== socket.id);
+  $("pauseTimer").textContent = room.paused && room.pauseDeadline
+    ? `Вернуться можно до ${new Date(room.pauseDeadline).toLocaleTimeString("ru-RU", {hour:"2-digit",minute:"2-digit"})}.`
+    : "";
   $("playersList").innerHTML = room.players.map(p => `
-    <div class="player-row"><div class="player-avatar">${escapeHtml(p.name.slice(0,1).toUpperCase())}</div>
-      <div class="player-name">${escapeHtml(p.name)}</div>${p.isHost?'<span class="player-badge">ВЕДУЩИЙ</span>':''}</div>`).join("");
+    <div class="player-row ${p.connected === false ? "player-disconnected" : ""}"><div class="player-avatar">${escapeHtml(p.name.slice(0,1).toUpperCase())}</div>
+      <div class="player-name">${escapeHtml(p.name)}</div>${p.isHost?'<span class="player-badge">ВЕДУЩИЙ</span>':''}${p.connected === false?'<span class="player-offline">НЕ В СЕТИ</span>':''}</div>`).join("");
   const isHost = room.hostId === socket.id;
   $("categorySelect").disabled = !isHost;
   $("spiesSelect").disabled = !isHost;
@@ -229,6 +234,25 @@ socket.on("game:revote", () => {
 });
 $("nextRoundBtn").onclick = async () => {
   const res = await ackEmit("game:next");
+  if (!res.ok) toast(res.error);
+};
+socket.on("game:paused", data => {
+  $("pauseMessage").textContent = data.message || "Один или несколько игроков покинули матч.";
+  $("pauseOverlay").classList.remove("hidden");
+  $("endEarlyBtn").classList.toggle("hidden", room?.hostId !== socket.id);
+});
+socket.on("game:resumed", message => {
+  $("pauseOverlay").classList.add("hidden");
+  toast(message || "Игра продолжается.");
+});
+socket.on("game:ended", message => {
+  $("pauseOverlay").classList.add("hidden");
+  myRole = null; hasVoted = false; latestResult = null; spyGuessDone = false;
+  show("roomView");
+  toast(message || "Матч завершён. Все игроки в лобби.");
+});
+$("endEarlyBtn").onclick = async () => {
+  const res = await ackEmit("game:endEarly");
   if (!res.ok) toast(res.error);
 };
 socket.on("game:notice", message => toast(message));
