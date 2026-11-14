@@ -168,7 +168,7 @@ function removePlayer(room, socketId) {
 }
 
 io.on("connection", socket => {
-  socket.on("room:create", ({ name, settings } = {}, ack = () => {}) => {
+  socket.on("room:create", ({ name, settings, sessionToken } = {}, ack = () => {}) => {
     name = cleanName(name);
     if (!name) return ack({ ok: false, error: "Введи имя игрока." });
     const code = makeCode();
@@ -182,7 +182,7 @@ io.on("connection", socket => {
       phase: "lobby", round: 0, target: null, spyIds: [], votes: new Map(),
       turnOrder: [], turnIndex: 0, completedRounds: 0
     };
-    room.players.set(socket.id, { id: socket.id, name, role: null });
+    room.players.set(socket.id, { id: socket.id, name, role: null, sessionToken });
     rooms.set(code, room);
     socket.join(code);
     socket.data.roomCode = code;
@@ -190,7 +190,7 @@ io.on("connection", socket => {
     emitRoom(room);
   });
 
-  socket.on("room:join", ({ code, name } = {}, ack = () => {}) => {
+  socket.on("room:join", ({ code, name, sessionToken } = {}, ack = () => {}) => {
     code = String(code || "").trim().toUpperCase();
     name = cleanName(name);
     const room = rooms.get(code);
@@ -201,11 +201,54 @@ io.on("connection", socket => {
     if ([...room.players.values()].some(p => p.name.toLowerCase() === name.toLowerCase())) {
       return ack({ ok: false, error: "Это имя уже занято в комнате." });
     }
-    room.players.set(socket.id, { id: socket.id, name, role: null });
+    room.players.set(socket.id, { id: socket.id, name, role: null, sessionToken });
     socket.join(code);
     socket.data.roomCode = code;
     ack({ ok: true, room: publicRoom(room) });
     emitRoom(room);
+  });
+
+  socket.on("room:resume", ({ sessionToken } = {}, ack = () => {}) => {
+    if (!sessionToken) return ack({ ok: false, error: "Сессия не найдена." });
+    let room, oldId, player;
+    for (const candidate of rooms.values()) {
+      for (const [id, p] of candidate.players.entries()) {
+        if (p.sessionToken === sessionToken) { room = candidate; oldId = id; player = p; break; }
+      }
+      if (room) break;
+    }
+    if (!room || !player) return ack({ ok: false, error: "Комната больше недоступна." });
+    if (oldId !== socket.id) {
+      room.players.delete(oldId);
+      player.id = socket.id;
+      room.players.set(socket.id, player);
+      if (room.hostId === oldId) room.hostId = socket.id;
+      room.turnOrder = (room.turnOrder || []).map(id => id === oldId ? socket.id : id);
+      room.spyIds = (room.spyIds || []).map(id => id === oldId ? socket.id : id);
+      if (room.votes.has(oldId)) { const vote = room.votes.get(oldId); room.votes.delete(oldId); room.votes.set(socket.id, vote); }
+      for (const [voter, target] of room.votes.entries()) if (target === oldId) room.votes.set(voter, socket.id);
+    }
+    socket.join(room.code);
+    socket.data.roomCode = room.code;
+    ack({ ok: true, room: publicRoom(room) });
+    emitRoom(room);
+    if (room.phase === "playing" || room.phase === "voting") {
+      socket.emit("game:role", { role: player.role, target: player.role === "spy" ? null : room.target,
+        targetImage: player.role === "spy" ? null : getTargetImage(room.settings.category, room.target),
+        category: room.settings.category, round: room.round });
+    } else if (room.phase === "reveal") {
+      const resultData = {
+        ...room.result,
+        spyNames: room.spyIds.map(id => room.players.get(id)?.name).filter(Boolean),
+        votedOutName: room.result?.votedOut ? room.players.get(room.result.votedOut)?.name : null,
+        category: room.settings.category
+      };
+      const tie = !!room.result?.tie;
+      socket.emit("game:result", tie || player.role === "spy"
+        ? { ...resultData, target: null, targetImage: null }
+        : { ...resultData, target: room.target, targetImage: getTargetImage(room.settings.category, room.target) });
+      if (room.spyGuessResult) socket.emit("game:spyGuess", room.spyGuessResult);
+    }
   });
 
   socket.on("room:settings", ({ category, spies, rounds } = {}, ack = () => {}) => {
@@ -307,7 +350,8 @@ io.on("connection", socket => {
     }
     const normalized = String(guess || "").trim().toLocaleLowerCase("ru");
     const correct = normalized === String(room.target).trim().toLocaleLowerCase("ru");
-    io.to(room.code).emit("game:spyGuess", { player: room.players.get(socket.id)?.name, correct, target: room.target, targetImage: getTargetImage(room.settings.category, room.target), category: room.settings.category });
+    room.spyGuessResult = { player: room.players.get(socket.id)?.name, correct, target: room.target, targetImage: getTargetImage(room.settings.category, room.target), category: room.settings.category };
+    io.to(room.code).emit("game:spyGuess", room.spyGuessResult);
     ack({ ok: true, correct });
   });
 
@@ -351,10 +395,15 @@ io.on("connection", socket => {
 
   socket.on("disconnect", () => {
     const room = getRoomBySocket(socket);
-    if (room) {
-      socket.data.roomCode = null;
-      removePlayer(room, socket.id);
-    }
+    if (!room) return;
+    const player = room.players.get(socket.id);
+    const token = player?.sessionToken;
+    socket.data.roomCode = null;
+    setTimeout(() => {
+      const currentRoom = rooms.get(room.code);
+      const currentPlayer = currentRoom?.players.get(socket.id);
+      if (currentRoom && currentPlayer && currentPlayer.sessionToken === token) removePlayer(currentRoom, socket.id);
+    }, 60000);
   });
 });
 
