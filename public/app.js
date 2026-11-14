@@ -54,7 +54,7 @@ async function createRoom() {
   if (!name) return;
   const res = await ackEmit("room:create", {name, sessionToken, settings:{category:"champions",spies:1,rounds:4}});
   if (!res.ok) return toast(res.error);
-  room = res.room; show("roomView"); renderRoom();
+  room = res.room; setPrivacyHidden(true); show("roomView"); renderRoom();
 }
 $("createBtn").onclick = createRoom;
 $("showJoinBtn").onclick = () => $("joinPanel").classList.remove("hidden");
@@ -63,7 +63,7 @@ $("joinBtn").onclick = async () => {
   setError("joinError");
   const res = await ackEmit("room:join", {name:$("joinName").value,code:$("joinCode").value,sessionToken});
   if (!res.ok) return setError("joinError",res.error);
-  room = res.room; $("joinPanel").classList.add("hidden"); show("roomView"); renderRoom();
+  room = res.room; setPrivacyHidden(true); $("joinPanel").classList.add("hidden"); show("roomView"); renderRoom();
 };
 $("joinCode").addEventListener("input", e => e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,5));
 const inviteRoomCode = new URLSearchParams(window.location.search).get("room");
@@ -101,15 +101,15 @@ $("copyLinkBtn").onclick = async () => {
   catch { toast(`Ссылка: ${inviteUrl}`); }
 };
 let privacyHidden = true;
-document.body.classList.add("privacy-mode");
-$("privacyIcon").textContent = "◌";
-$("privacyToggle").onclick = () => {
-  privacyHidden = !privacyHidden;
+function setPrivacyHidden(hidden) {
+  privacyHidden = hidden;
   document.body.classList.toggle("privacy-mode", privacyHidden);
   $("privacyIcon").textContent = privacyHidden ? "◌" : "◉";
   $("privacyToggle").setAttribute("aria-label", privacyHidden ? "Показать код" : "Скрыть код");
   $("privacyToggle").title = privacyHidden ? "Показать код" : "Скрыть код";
-};
+}
+setPrivacyHidden(true);
+$("privacyToggle").onclick = () => setPrivacyHidden(!privacyHidden);
 async function leaveRoom() {
   if (!room) { show("homeView"); return; }
   const res = await ackEmit("room:leave");
@@ -228,5 +228,5 @@ socket.on("connect", async () => {
   if (resumeAttempted) return;
   resumeAttempted = true;
   const res = await ackEmit("room:resume", { sessionToken });
-  if (res.ok) { room = res.room; renderRoom(); if (room.phase === "lobby") show("roomView"); }
+  if (res.ok) { room = res.room; setPrivacyHidden(true); renderRoom(); if (room.phase === "lobby") show("roomView"); }
 });
