@@ -47,3 +47,6 @@ npm start
 
 
 Обновление: доступны только категории «Чемпионы» и «Предметы». Кнопка выхода доступна в лобби, во время раунда и на экране результатов. При выходе ведущего его роль передаётся следующему игроку.
+
+
+UI fix: the in-game leave-room button now has a dedicated two-column game header layout and explicit visibility on narrow screens.
