@@ -207,5 +207,5 @@ socket.on("connect", async () => {
   if (resumeAttempted) return;
   resumeAttempted = true;
   const res = await ackEmit("room:resume", { sessionToken });
-  if (res.ok) { room = res.room; renderRoom(); }
+  if (res.ok) { room = res.room; renderRoom(); if (room.phase === "lobby") show("roomView"); }
 });
