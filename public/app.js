@@ -2,6 +2,9 @@
 const socket = io();
 const $ = id => document.getElementById(id);
 let room = null, myRole = null, hasVoted = false, latestResult = null, spyGuessDone = false;
+const sessionToken = sessionStorage.getItem("spyfallSession") || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+sessionStorage.setItem("spyfallSession", sessionToken);
+let resumeAttempted = false;
 
 function show(view) {
   ["homeView","roomView","gameView","resultView"].forEach(id => $(id).classList.toggle("hidden", id !== view));
@@ -50,7 +53,7 @@ function escapeHtml(s) {
 async function createRoom() {
   const name = prompt("Как тебя зовут в игре?");
   if (!name) return;
-  const res = await ackEmit("room:create", {name, settings:{category:"champions",spies:1,rounds:4}});
+  const res = await ackEmit("room:create", {name, sessionToken, settings:{category:"champions",spies:1,rounds:4}});
   if (!res.ok) return toast(res.error);
   room = res.room; show("roomView"); renderRoom();
 }
@@ -59,7 +62,7 @@ $("showJoinBtn").onclick = () => $("joinPanel").classList.remove("hidden");
 $("closeJoin").onclick = () => $("joinPanel").classList.add("hidden");
 $("joinBtn").onclick = async () => {
   setError("joinError");
-  const res = await ackEmit("room:join", {name:$("joinName").value,code:$("joinCode").value});
+  const res = await ackEmit("room:join", {name:$("joinName").value,code:$("joinCode").value,sessionToken});
   if (!res.ok) return setError("joinError",res.error);
   room = res.room; $("joinPanel").classList.add("hidden"); show("roomView"); renderRoom();
 };
@@ -91,6 +94,7 @@ async function leaveRoom() {
   const res = await ackEmit("room:leave");
   if (!res.ok) return toast(res.error || "Не удалось покинуть комнату.");
   room = null;
+  sessionStorage.removeItem("spyfallSession");
   myRole = null;
   hasVoted = false;
   latestResult = null;
@@ -199,4 +203,9 @@ $("nextRoundBtn").onclick = async () => {
 };
 socket.on("game:notice", message => toast(message));
 socket.on("disconnect", () => toast("Соединение потеряно. Пытаемся переподключиться…"));
-socket.on("connect", () => { if (room) toast("Соединение восстановлено. Если комната пропала, создай новую."); });
+socket.on("connect", async () => {
+  if (resumeAttempted || room) return;
+  resumeAttempted = true;
+  const res = await ackEmit("room:resume", { sessionToken });
+  if (res.ok) { room = res.room; renderRoom(); }
+});
