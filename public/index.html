@@ -54,7 +54,17 @@
         <div class="panel players-panel">
           <div class="panel-head"><div><small>СОБРАНИЕ ПРИЗЫВАТЕЛЕЙ</small><h2>Игроки <span class="count" id="playerCount">0/10</span></h2></div><div class="host-tag">HOST</div></div>
           <div id="playersList" class="players-list"></div>
-          <div class="invite-box"><div><small>ПРИГЛАСИ ДРУЗЕЙ</small><strong id="inviteCode">-----</strong></div><button class="btn btn-outline btn-small" id="copyCodeBtn">Копировать код</button></div>
+          <div class="invite-box">
+            <div class="invite-details">
+              <div class="invite-value"><small>КОД КОМНАТЫ</small><strong id="inviteCode">-----</strong></div>
+              <div class="invite-value invite-link-value"><small>ССЫЛКА-ПРИГЛАШЕНИЕ</small><span id="inviteLinkText">—</span></div>
+            </div>
+            <div class="invite-actions">
+              <button class="btn btn-outline btn-small" id="copyCodeBtn" type="button">Копировать код</button>
+              <button class="btn btn-outline btn-small" id="copyLinkBtn" type="button">Копировать ссылку</button>
+              <button class="icon-btn privacy-toggle" id="privacyToggle" type="button" aria-label="Скрыть код и ссылку" title="Скрыть код и ссылку"><span id="privacyIcon">◉</span></button>
+            </div>
+          </div>
         </div>
         <div class="panel settings-panel">
           <small>ПАРАМЕТРЫ МАТЧА</small><h2>Настройки игры</h2>
