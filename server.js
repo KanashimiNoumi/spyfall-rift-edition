@@ -122,6 +122,14 @@ function cleanName(name) {
 function choose(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
+function shuffle(list) {
+  const result = [...list];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
 function pickTarget(category, champions) {
   const source = category === "items" ? itemCache.names : champions;
   return choose(source);
@@ -180,7 +188,8 @@ io.on("connection", socket => {
         rounds: Math.max(3, Math.min(10, Number(settings?.rounds) || 4))
       },
       phase: "lobby", round: 0, target: null, spyIds: [], votes: new Map(),
-      turnOrder: [], turnIndex: 0, completedRounds: 0
+      turnOrder: [], turnIndex: 0, completedRounds: 0,
+      lastSpyIds: [], nextStarterId: socket.id
     };
     room.players.set(socket.id, { id: socket.id, name, role: null, sessionToken });
     rooms.set(code, room);
@@ -225,6 +234,8 @@ io.on("connection", socket => {
       if (room.hostId === oldId) room.hostId = socket.id;
       room.turnOrder = (room.turnOrder || []).map(id => id === oldId ? socket.id : id);
       room.spyIds = (room.spyIds || []).map(id => id === oldId ? socket.id : id);
+      room.lastSpyIds = (room.lastSpyIds || []).map(id => id === oldId ? socket.id : id);
+      if (room.nextStarterId === oldId) room.nextStarterId = socket.id;
       if (room.votes.has(oldId)) { const vote = room.votes.get(oldId); room.votes.delete(oldId); room.votes.set(socket.id, vote); }
       for (const [voter, target] of room.votes.entries()) if (target === oldId) room.votes.set(voter, socket.id);
     }
@@ -270,14 +281,23 @@ io.on("connection", socket => {
     if (room.players.size < 3) return ack({ ok: false, error: "Нужно минимум 3 игрока." });
     const spiesCount = Math.min(room.settings.spies, room.players.size - 1);
     const ids = [...room.players.keys()];
-    const shuffled = ids.sort(() => Math.random() - 0.5);
-    room.spyIds = shuffled.slice(0, spiesCount);
+    const previousSpies = new Set(room.lastSpyIds || []);
+    const eligibleSpies = ids.filter(id => !previousSpies.has(id));
+    const selectedSpies = shuffle(eligibleSpies).slice(0, spiesCount);
+    if (selectedSpies.length < spiesCount) {
+      const repeatCandidates = shuffle(ids.filter(id => previousSpies.has(id)));
+      selectedSpies.push(...repeatCandidates.slice(0, spiesCount - selectedSpies.length));
+    }
+    room.spyIds = selectedSpies;
+    room.lastSpyIds = [...room.spyIds];
     const champions = await getChampions();
     room.target = pickTarget(room.settings.category, champions);
     const targetImage = getTargetImage(room.settings.category, room.target);
     room.phase = "playing";
     room.round += 1;
-    room.turnOrder = [...room.players.keys()];
+    const startIndex = Math.max(0, ids.indexOf(room.nextStarterId));
+    room.turnOrder = [...ids.slice(startIndex), ...ids.slice(0, startIndex)];
+    room.nextStarterId = ids[(startIndex + 1) % ids.length];
     room.turnIndex = 0;
     room.completedRounds = 0;
     room.votes.clear();
