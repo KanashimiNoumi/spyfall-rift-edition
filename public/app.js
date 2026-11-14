@@ -15,7 +15,7 @@ function ackEmit(event, payload={}) {
   return new Promise(resolve => socket.emit(event, payload, result => resolve(result || {ok:false,error:"Нет ответа сервера."})));
 }
 function categoryName(key) {
-  return ({champions:"ЧЕМПИОН LEAGUE OF LEGENDS",regions:"РЕГИОН РУНТЕРРЫ",items:"ПРЕДМЕТ LEAGUE OF LEGENDS",abilities:"СПОСОБНОСТЬ ЧЕМПИОНА"})[key] || "LEAGUE OF LEGENDS";
+  return ({champions:"ЧЕМПИОН LEAGUE OF LEGENDS",items:"ПРЕДМЕТ LEAGUE OF LEGENDS"})[key] || "LEAGUE OF LEGENDS";
 }
 function renderRoom() {
   if (!room) return;
@@ -70,9 +70,22 @@ $("copyCodeBtn").onclick = async () => {
   try { await navigator.clipboard.writeText(room.code); toast("Код комнаты скопирован."); }
   catch { toast(`Код комнаты: ${room.code}`); }
 };
-$("leaveBtn").onclick = async () => {
-  socket.emit("room:leave"); room=null; myRole=null; show("homeView");
-};
+async function leaveRoom() {
+  if (!room) { show("homeView"); return; }
+  const res = await ackEmit("room:leave");
+  if (!res.ok) return toast(res.error || "Не удалось покинуть комнату.");
+  room = null;
+  myRole = null;
+  hasVoted = false;
+  latestResult = null;
+  spyGuessDone = false;
+  show("homeView");
+  toast("Ты покинул комнату.");
+}
+["leaveBtn", "leaveGameBtn", "leaveResultBtn"].forEach(id => {
+  const button = $(id);
+  if (button) button.onclick = leaveRoom;
+});
 $("brandHome").onclick = e => { if(room) { e.preventDefault(); toast("Сначала покинь текущую комнату."); } };
 
 socket.on("room:update", data => {

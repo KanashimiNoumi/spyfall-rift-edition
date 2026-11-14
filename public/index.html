@@ -58,7 +58,7 @@
         </div>
         <div class="panel settings-panel">
           <small>ПАРАМЕТРЫ МАТЧА</small><h2>Настройки игры</h2>
-          <label>Категория секрета<select id="categorySelect"><option value="champions">Чемпионы</option><option value="regions">Регионы Рунтерры</option><option value="items">Предметы</option><option value="abilities">Способности</option></select></label>
+          <label>Категория секрета<select id="categorySelect"><option value="champions">Чемпионы</option><option value="items">Предметы</option></select></label>
           <label>Количество шпионов<select id="spiesSelect"><option value="1">1 шпион</option><option value="2">2 шпиона</option><option value="3">3 шпиона</option></select></label>
           <p class="hint">Настройки меняет создатель комнаты. Для старта нужно минимум 3 игрока.</p>
           <button class="btn btn-gold full" id="startBtn">Начать раунд <span>✦</span></button>
@@ -69,13 +69,13 @@
     </section>
 
     <section id="gameView" class="view hidden">
-      <div class="game-top"><div class="eyebrow"><span></span> ROUND <b id="roundNumber">01</b></div><div class="room-chip">КОМНАТА <b id="gameRoomCode">-----</b></div></div>
+      <div class="game-top"><div class="eyebrow"><span></span> ROUND <b id="roundNumber">01</b></div><div class="room-chip">КОМНАТА <b id="gameRoomCode">-----</b></div><button class="btn btn-outline btn-small" id="leaveGameBtn" type="button" aria-label="Покинуть текущую комнату">Покинуть комнату</button></div>
       <div class="role-card" id="roleCard">
         <div class="role-emblem">✦</div>
         <div class="role-kicker" id="roleKicker">ТВОЯ РОЛЬ</div>
         <h1 id="roleTitle">Ты — <em>призыватель</em></h1>
         <p id="roleDescription">Твоя задача — не раскрыть секрет.</p>
-        <div class="secret-wrap" id="secretWrap"><small>СЕКРЕТНЫЙ ЧЕМПИОН</small><strong id="secretName">---</strong><span id="secretCategory">LEAGUE OF LEGENDS</span></div>
+        <div class="secret-wrap" id="secretWrap"><small>СЕКРЕТНЫЙ ОБЪЕКТ</small><strong id="secretName">---</strong><span id="secretCategory">LEAGUE OF LEGENDS</span></div>
         <div class="spy-hint hidden" id="spyHint">Ты не знаешь секрет. Слушай остальных, задавай вопросы и попробуй вычислить, о ком речь.</div>
       </div>
       <div class="game-instructions panel">
@@ -90,7 +90,7 @@
     </section>
 
     <section id="resultView" class="view hidden">
-      <div class="eyebrow"><span></span> ROUND COMPLETE</div>
+      <div class="room-heading"><div class="eyebrow"><span></span> ROUND COMPLETE</div><button class="btn btn-outline btn-small" id="leaveResultBtn">Покинуть комнату</button></div>
       <div class="result-card panel">
         <div class="result-symbol" id="resultSymbol">✦</div>
         <small>ИТОГИ РАУНДА</small>
