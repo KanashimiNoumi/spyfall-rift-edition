@@ -254,19 +254,20 @@ io.on("connection", socket => {
     ack({ ok: true });
   });
 
-  socket.on("room:leave", (ack = () => {}) => {
-    const room = getRoomBySocket(socket);
-    if (!room) return ack({ ok: true });
-    socket.leave(room.code);
-    socket.data.roomCode = null;
-    removePlayer(room, socket.id);
-    ack({ ok: true });
-  });
+  socket.on("room:leave", (...args) => {
+  const ack = args.find(arg => typeof arg === "function");
 
-  socket.on("disconnect", () => {
-    const room = getRoomBySocket(socket);
-    if (room) removePlayer(room, socket.id);
-  });
-});
+  const room = getRoomBySocket(socket);
+  if (!room) {
+    if (ack) ack({ ok: true });
+    return;
+  }
+
+  socket.leave(room.code);
+  socket.data.roomCode = null;
+  removePlayer(room, socket.id);
+
+  if (ack) ack({ ok: true });
+ });
 
 server.listen(PORT, () => console.log(`Spyfall: Rift Edition running on http://localhost:${PORT}`));
