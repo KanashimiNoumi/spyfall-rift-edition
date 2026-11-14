@@ -32,6 +32,8 @@ function renderRoom() {
   if (!room) return;
   $("roomCodeTitle").textContent = room.code;
   $("inviteCode").textContent = room.code;
+  const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(room.code)}`;
+  $("inviteLinkText").textContent = inviteUrl;
   $("gameRoomCode").textContent = room.code;
   $("playerCount").textContent = `${room.players.length}/10`;
   $("playersList").innerHTML = room.players.map(p => `
@@ -67,6 +69,11 @@ $("joinBtn").onclick = async () => {
   room = res.room; $("joinPanel").classList.add("hidden"); show("roomView"); renderRoom();
 };
 $("joinCode").addEventListener("input", e => e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,5));
+const inviteRoomCode = new URLSearchParams(window.location.search).get("room");
+if (inviteRoomCode) {
+  $("joinCode").value = inviteRoomCode.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,5);
+  $("joinPanel").classList.remove("hidden");
+}
 $("categorySelect").onchange = () => updateSettings();
 $("spiesSelect").onchange = () => updateSettings();
 $("roundsSelect").onchange = () => updateSettings();
@@ -86,8 +93,23 @@ $("startBtn").onclick = async () => {
   if (!res.ok) setError("roomError",res.error);
 };
 $("copyCodeBtn").onclick = async () => {
+  if (!room) return;
   try { await navigator.clipboard.writeText(room.code); toast("Код комнаты скопирован."); }
   catch { toast(`Код комнаты: ${room.code}`); }
+};
+$("copyLinkBtn").onclick = async () => {
+  if (!room) return;
+  const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(room.code)}`;
+  try { await navigator.clipboard.writeText(inviteUrl); toast("Ссылка-приглашение скопирована."); }
+  catch { toast(`Ссылка: ${inviteUrl}`); }
+};
+let privacyHidden = false;
+$("privacyToggle").onclick = () => {
+  privacyHidden = !privacyHidden;
+  document.body.classList.toggle("privacy-mode", privacyHidden);
+  $("privacyIcon").textContent = privacyHidden ? "◌" : "◉";
+  $("privacyToggle").setAttribute("aria-label", privacyHidden ? "Показать код и ссылку" : "Скрыть код и ссылку");
+  $("privacyToggle").title = privacyHidden ? "Показать код и ссылку" : "Скрыть код и ссылку";
 };
 async function leaveRoom() {
   if (!room) { show("homeView"); return; }
