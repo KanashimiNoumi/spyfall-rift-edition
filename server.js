@@ -35,24 +35,12 @@ const fallbackChampions = [
   "Зои","Зыra"
 ];
 
-const regions = [
-  "Демасия","Ноксус","Иония","Пилтовер","Заун","Фрельйорд","Шурима","Тargon","Бандл-Сити",
-  "Острова Теней","Ишталь","Пустота","Рунтерра"
-];
-
 const items = [
   "Клинок падшего короля","Мучения Лиандри","Песочные часы Жони","Ангел-хранитель",
   "Посох архангела","Клинок ярости Гинсу","Смерть Разума","Затмение","Сила триединства",
   "Край ночи","Шипованный доспех","Мореллономикон","Сфера бесконечности","Шляпа Рабадона",
   "Поклон лорда Доминика","Сборщик долгов","Сумрачный клинок Драктарра","Сердце стали",
   "Призрачный танцор","Посох Бездны"
-];
-
-const abilities = [
-  "Стрела света","Прыжок веры","Последнее дыхание","Проклятие мумии","Космическое сияние",
-  "Катаклизм","Смертельный цветок","Скачок во времени","Гнев дракона","Печать тьмы",
-  "Призыв: Тибберс","Взрывной заряд","Судьба","Поглощение душ","Падение небес",
-  "Гробница песков","Смертельный приговор","Проклятие живых","Вихрь клинков","Солнечная вспышка"
 ];
 
 let championCache = { at: 0, names: fallbackChampions };
@@ -110,9 +98,7 @@ function choose(list) {
 }
 
 function pickTarget(category, champions) {
-  const source = category === "champions" ? champions :
-    category === "regions" ? regions :
-    category === "items" ? items : abilities;
+  const source = category === "items" ? items : champions;
   return choose(source);
 }
 
@@ -148,7 +134,7 @@ io.on("connection", socket => {
     const room = {
       code, hostId: socket.id, players: new Map(),
       settings: {
-        category: ["champions","regions","items","abilities"].includes(settings?.category) ? settings.category : "champions",
+        category: ["champions","items"].includes(settings?.category) ? settings.category : "champions",
         spies: Math.max(1, Math.min(3, Number(settings?.spies) || 1))
       },
       phase: "lobby", round: 0, target: null, spyIds: [], votes: new Map()
@@ -184,7 +170,7 @@ io.on("connection", socket => {
     if (!room) return ack({ ok: false, error: "Комната не найдена." });
     if (socket.id !== room.hostId) return ack({ ok: false, error: "Настройки меняет только ведущий." });
     if (room.phase !== "lobby") return ack({ ok: false, error: "Настройки нельзя менять во время раунда." });
-    if (["champions","regions","items","abilities"].includes(category)) room.settings.category = category;
+    if (["champions","items"].includes(category)) room.settings.category = category;
     if (Number.isInteger(Number(spies))) room.settings.spies = Math.max(1, Math.min(3, Number(spies)));
     emitRoom(room);
     ack({ ok: true });
@@ -268,12 +254,13 @@ io.on("connection", socket => {
     ack({ ok: true });
   });
 
-  socket.on("room:leave", () => {
+  socket.on("room:leave", (ack = () => {}) => {
     const room = getRoomBySocket(socket);
-    if (!room) return;
+    if (!room) return ack({ ok: true });
     socket.leave(room.code);
     socket.data.roomCode = null;
     removePlayer(room, socket.id);
+    ack({ ok: true });
   });
 
   socket.on("disconnect", () => {

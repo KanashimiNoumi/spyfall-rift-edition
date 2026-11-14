@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080d18">
+  <title>SPYFALL: RIFT EDITION</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="backdrop"></div>
+  <div class="grain"></div>
+  <header class="topbar">
+    <a class="brand" href="#" id="brandHome"><span class="brand-mark">✦</span><span>SPYFALL <i>RIFT EDITION</i></span></a>
+    <div class="top-right"><span class="live-dot"></span><span>ONLINE PARTY GAME</span></div>
+  </header>
+
+  <main class="shell">
+    <section id="homeView" class="view home-view">
+      <div class="hero-copy">
+        <div class="eyebrow"><span></span> THE RIFT IS WATCHING</div>
+        <h1>Среди вас<br><em>есть шпион.</em></h1>
+        <p class="lead">Все знают секретного чемпиона. Кроме одного.<br>Задавай вопросы, не выдавай себя и найди шпиона.</p>
+        <div class="hero-actions">
+          <button class="btn btn-gold" id="createBtn">Создать комнату <span>↗</span></button>
+          <button class="btn btn-outline" id="showJoinBtn">Войти по коду</button>
+        </div>
+        <div class="feature-line"><span>✦ 3–10 игроков</span><span>✦ Бесплатно</span><span>✦ Без установки</span></div>
+      </div>
+      <div class="hero-art">
+        <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+        <div class="sigil">✧</div>
+        <div class="hero-rune">R</div>
+        <div class="art-caption"><small>SUMMONER'S RIFT</small><strong>TRUST NO ONE</strong></div>
+      </div>
+      <div class="join-panel hidden" id="joinPanel">
+        <div class="panel-head"><div><small>ВОЙТИ В ИГРУ</small><h2>Присоединиться</h2></div><button class="icon-btn" id="closeJoin" aria-label="Закрыть">×</button></div>
+        <label>Твоё имя<input id="joinName" maxlength="18" placeholder="Например, TeemoMain"></label>
+        <label>Код комнаты<input id="joinCode" maxlength="5" placeholder="ABCDE" class="code-input"></label>
+        <button class="btn btn-gold full" id="joinBtn">Войти в комнату</button>
+        <p class="error" id="joinError"></p>
+      </div>
+    </section>
+
+    <section id="roomView" class="view hidden">
+      <div class="room-heading">
+        <div><div class="eyebrow"><span></span> LOBBY / SUMMONER'S RIFT</div><h1>Комната <em id="roomCodeTitle">-----</em></h1></div>
+        <button class="btn btn-outline btn-small" id="leaveBtn">Покинуть комнату</button>
+      </div>
+      <div class="room-grid">
+        <div class="panel players-panel">
+          <div class="panel-head"><div><small>СОБРАНИЕ ПРИЗЫВАТЕЛЕЙ</small><h2>Игроки <span class="count" id="playerCount">0/10</span></h2></div><div class="host-tag">HOST</div></div>
+          <div id="playersList" class="players-list"></div>
+          <div class="invite-box"><div><small>ПРИГЛАСИ ДРУЗЕЙ</small><strong id="inviteCode">-----</strong></div><button class="btn btn-outline btn-small" id="copyCodeBtn">Копировать код</button></div>
+        </div>
+        <div class="panel settings-panel">
+          <small>ПАРАМЕТРЫ МАТЧА</small><h2>Настройки игры</h2>
+          <label>Категория секрета<select id="categorySelect"><option value="champions">Чемпионы</option><option value="items">Предметы</option></select></label>
+          <label>Количество шпионов<select id="spiesSelect"><option value="1">1 шпион</option><option value="2">2 шпиона</option><option value="3">3 шпиона</option></select></label>
+          <p class="hint">Настройки меняет создатель комнаты. Для старта нужно минимум 3 игрока.</p>
+          <button class="btn btn-gold full" id="startBtn">Начать раунд <span>✦</span></button>
+          <p class="error" id="roomError"></p>
+          <div class="waiting-note"><span class="pulse"></span> ОЖИДАНИЕ ПРИЗЫВАТЕЛЕЙ</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="gameView" class="view hidden">
+      <div class="game-top"><div class="eyebrow"><span></span> ROUND <b id="roundNumber">01</b></div><div class="room-chip">КОМНАТА <b id="gameRoomCode">-----</b></div><button class="btn btn-outline btn-small" id="leaveGameBtn">Покинуть комнату</button></div>
+      <div class="role-card" id="roleCard">
+        <div class="role-emblem">✦</div>
+        <div class="role-kicker" id="roleKicker">ТВОЯ РОЛЬ</div>
+        <h1 id="roleTitle">Ты — <em>призыватель</em></h1>
+        <p id="roleDescription">Твоя задача — не раскрыть секрет.</p>
+        <div class="secret-wrap" id="secretWrap"><small>СЕКРЕТНЫЙ ОБЪЕКТ</small><strong id="secretName">---</strong><span id="secretCategory">LEAGUE OF LEGENDS</span></div>
+        <div class="spy-hint hidden" id="spyHint">Ты не знаешь секрет. Слушай остальных, задавай вопросы и попробуй вычислить, о ком речь.</div>
+      </div>
+      <div class="game-instructions panel">
+        <div><small>КАК ИГРАТЬ</small><p>Задавайте вопросы по очереди. Отвечайте так, чтобы свои поняли, что вы не шпион, но не раскрывайте секрет напрямую.</p></div>
+        <div class="turn-mark">01 <span>/</span> ASK</div>
+      </div>
+      <div class="panel vote-panel">
+        <div class="panel-head"><div><small>ФИНАЛЬНОЕ РЕШЕНИЕ</small><h2>Кто здесь шпион?</h2></div><span class="vote-progress" id="voteProgress">0 голосов</span></div>
+        <div id="voteList" class="vote-list"></div>
+        <p class="hint">Обсудите подозрения в голосовом чате, затем каждый выбирает одного игрока.</p>
+      </div>
+    </section>
+
+    <section id="resultView" class="view hidden">
+      <div class="room-heading"><div class="eyebrow"><span></span> ROUND COMPLETE</div><button class="btn btn-outline btn-small" id="leaveResultBtn">Покинуть комнату</button></div>
+      <div class="result-card panel">
+        <div class="result-symbol" id="resultSymbol">✦</div>
+        <small>ИТОГИ РАУНДА</small>
+        <h1 id="resultTitle">Шпион раскрыт</h1>
+        <p id="resultText"></p>
+        <div class="result-secret"><small>СЕКРЕТ БЫЛ</small><strong id="resultTarget"></strong></div>
+        <div class="result-spies"><small>ШПИОНЫ</small><strong id="resultSpies"></strong></div>
+        <div class="spy-guess hidden" id="spyGuessBox">
+          <label>Шпион может попробовать угадать секрет<input id="spyGuessInput" placeholder="Введи название..."></label>
+          <button class="btn btn-outline full" id="spyGuessBtn">Проверить догадку</button>
+          <p class="hint" id="guessFeedback"></p>
+        </div>
+        <div id="guessOutcome" class="guess-outcome hidden"></div>
+        <button class="btn btn-gold full" id="nextRoundBtn">Следующий раунд <span>↗</span></button>
+      </div>
+    </section>
+    <div id="toast" class="toast"></div>
+  </main>
+  <footer><span>SPYFALL: RIFT EDITION</span><span>UNOFFICIAL FAN PROJECT · NOT AFFILIATED WITH RIOT GAMES</span></footer>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
