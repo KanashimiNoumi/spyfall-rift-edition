@@ -49,9 +49,15 @@ function renderRoom() {
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
+const PLAYER_NAME_KEY = "spyfallPlayerName";
+const playerNameInput = $("playerName");
+playerNameInput.value = localStorage.getItem(PLAYER_NAME_KEY) || "";
+playerNameInput.addEventListener("input", () => localStorage.setItem(PLAYER_NAME_KEY, playerNameInput.value.trim()));
+
 async function createRoom() {
-  const name = prompt("Как тебя зовут в игре?");
-  if (!name) return;
+  const name = playerNameInput.value.trim();
+  if (!name) return toast("Сначала введи своё имя.");
+  localStorage.setItem(PLAYER_NAME_KEY, name);
   const res = await ackEmit("room:create", {name, sessionToken, settings:{category:"champions",spies:1,rounds:4}});
   if (!res.ok) return toast(res.error);
   room = res.room; setPrivacyHidden(true); show("roomView"); renderRoom();
@@ -61,7 +67,10 @@ $("showJoinBtn").onclick = () => $("joinPanel").classList.remove("hidden");
 $("closeJoin").onclick = () => $("joinPanel").classList.add("hidden");
 $("joinBtn").onclick = async () => {
   setError("joinError");
-  const res = await ackEmit("room:join", {name:$("joinName").value,code:$("joinCode").value,sessionToken});
+  const name = playerNameInput.value.trim();
+  if (!name) return setError("joinError","Сначала введи своё имя на главном экране.");
+  localStorage.setItem(PLAYER_NAME_KEY, name);
+  const res = await ackEmit("room:join", {name,code:$("joinCode").value,sessionToken});
   if (!res.ok) return setError("joinError",res.error);
   room = res.room; setPrivacyHidden(true); $("joinPanel").classList.add("hidden"); show("roomView"); renderRoom();
 };
