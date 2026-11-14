@@ -42,7 +42,7 @@ footer{height:54px;border-top:1px solid rgba(200,170,110,.1);display:flex;align-
 .invite-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
 .privacy-toggle{width:36px;height:36px;display:grid;place-items:center;padding:0;border:1px solid rgba(200,170,110,.4);background:rgba(10,18,31,.65);font-size:20px;line-height:1;color:var(--gold2)}
 .privacy-toggle:hover{background:rgba(200,170,110,.12)}
-.privacy-mode #inviteCode,.privacy-mode #inviteLinkText,.privacy-mode .room-heading h1 em{filter:blur(8px);user-select:none}
+.privacy-mode #inviteCode,.privacy-mode #inviteLinkText,.privacy-mode .room-heading h1 em,.privacy-mode #gameRoomCode{filter:blur(8px);user-select:none}
 .privacy-mode #inviteCode,.privacy-mode #inviteLinkText{pointer-events:none}
 @media(max-width:760px){
   .invite-box{align-items:stretch;flex-direction:column}
