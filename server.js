@@ -255,7 +255,7 @@ io.on("connection", socket => {
         ...room.result,
         spyNames: room.spyIds.map(id => room.players.get(id)?.name).filter(Boolean),
         votedOutName: room.result?.votedOut ? room.players.get(room.result.votedOut)?.name : null,
-        category: room.settings.category
+        category: room.targetCategory || room.settings.category
       };
       const tie = !!room.result?.tie;
       socket.emit("game:result", tie || player.role === "spy"
@@ -294,8 +294,10 @@ io.on("connection", socket => {
     room.spyIds = selectedSpies;
     room.lastSpyIds = [...room.spyIds];
     const champions = await getChampions();
-    room.target = pickTarget(room.settings.category, champions);
-    const targetImage = getTargetImage(room.settings.category, room.target);
+    const pickedTarget = pickTarget(room.settings.category, champions);
+    room.target = pickedTarget.target;
+    room.targetCategory = pickedTarget.category;
+    const targetImage = getTargetImage(room.targetCategory, room.target);
     room.phase = "playing";
     room.round += 1;
     const startIndex = Math.max(0, ids.indexOf(room.nextStarterId));
@@ -311,7 +313,7 @@ io.on("connection", socket => {
         role: p.role,
         target: p.role === "spy" ? null : room.target,
         targetImage: p.role === "spy" ? null : targetImage,
-        category: room.settings.category,
+        category: room.targetCategory || room.settings.category,
         round: room.round
       });
     }
@@ -354,7 +356,7 @@ io.on("connection", socket => {
         votedOutName: room.result.votedOut ? room.players.get(room.result.votedOut)?.name : null,
         category: room.settings.category
       };
-      const targetImage = getTargetImage(room.settings.category, room.target);
+      const targetImage = getTargetImage(room.targetCategory || room.settings.category, room.target);
       for (const player of room.players.values()) {
         io.to(player.id).emit("game:result", room.result.tie
           ? { ...resultData, target: null, targetImage: null }
