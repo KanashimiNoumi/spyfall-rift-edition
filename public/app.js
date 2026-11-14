@@ -175,7 +175,7 @@ $("spyGuessBtn").onclick = async () => {
 };
 socket.on("game:spyGuess", data => {
   $("resultSecret").classList.remove("hidden");
-  $("resultTarget").textContent = data.target;
+  $("resultTarget").textContent = data.correct ? "Шпиону удалось угадать секрет!" : data.target;
   setTargetImage("resultImage", data.targetImage, data.target);
   $("spyGuessBox").classList.add("hidden");
   $("guessOutcome").classList.remove("hidden");
