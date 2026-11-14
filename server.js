@@ -289,9 +289,11 @@ io.on("connection", socket => {
       };
       const targetImage = getTargetImage(room.settings.category, room.target);
       for (const player of room.players.values()) {
-        io.to(player.id).emit("game:result", player.role === "spy"
+        io.to(player.id).emit("game:result", room.result.tie
           ? { ...resultData, target: null, targetImage: null }
-          : { ...resultData, target: room.target, targetImage });
+          : player.role === "spy"
+            ? { ...resultData, target: null, targetImage: null }
+            : { ...resultData, target: room.target, targetImage });
       }
       emitRoom(room);
     }
@@ -300,13 +302,25 @@ io.on("connection", socket => {
 
   socket.on("game:guess", ({ guess } = {}, ack = () => {}) => {
     const room = getRoomBySocket(socket);
-    if (!room || room.phase !== "reveal" || !room.spyIds.includes(socket.id)) {
+    if (!room || room.phase !== "reveal" || room.result?.tie || !room.spyIds.includes(socket.id)) {
       return ack({ ok: false, error: "Сейчас нельзя угадывать." });
     }
     const normalized = String(guess || "").trim().toLocaleLowerCase("ru");
     const correct = normalized === String(room.target).trim().toLocaleLowerCase("ru");
     io.to(room.code).emit("game:spyGuess", { player: room.players.get(socket.id)?.name, correct, target: room.target, targetImage: getTargetImage(room.settings.category, room.target), category: room.settings.category });
     ack({ ok: true, correct });
+  });
+
+  socket.on("game:revote", (_payload, ack = () => {}) => {
+    const room = getRoomBySocket(socket);
+    if (!room || socket.id !== room.hostId) return ack({ ok: false, error: "Только ведущий может запустить переголосование." });
+    if (room.phase !== "reveal" || !room.result?.tie) return ack({ ok: false, error: "Переголосование доступно только при ничьей." });
+    room.votes.clear();
+    room.result = null;
+    room.phase = "voting";
+    emitRoom(room);
+    io.to(room.code).emit("game:revote");
+    ack({ ok: true });
   });
 
   socket.on("game:next", (_payload, ack = () => {}) => {
