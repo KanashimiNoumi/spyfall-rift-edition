@@ -31,45 +31,19 @@ const fallbackChampions = [
   "Ксин Жао","Ясуо","Йone","Ёрик","Юми","Заахен","Зак","Зед","Зери","Зиггс","Зилеан",
   "Зои","Зыra"
 ];
-const items = [
-  "Клинок падшего короля","Мучения Лиандри","Песочные часы Жони","Ангел-хранитель",
-  "Посох архангела","Клинок ярости Гинсу","Смерть Разума","Затмение","Сила триединства",
-  "Край ночи","Шипованный доспех","Мореллономикон","Сфера бесконечности","Шляпа Рабадона",
-  "Поклон лорда Доминика","Сборщик долгов","Сумрачный клинок Драктарра","Сердце стали",
-  "Призрачный танцор","Посох Бездны"
+const fallbackItems = [
+  "Ботинки скорости","Ионийские сапоги просветления","Сапоги чародея",
+  "Наголенники берсерка","Сапоги стремительности"
 ];
 
 let championCache = { at: 0, names: fallbackChampions, images: {}, version: null };
-let itemCache = { at: 0, images: {} };
+let itemCache = { at: 0, images: {}, names: fallbackItems };
 
 function normalizeTargetName(value) {
   return String(value || "").toLocaleLowerCase("ru")
     .replace(/ё/g, "е")
     .replace(/[^a-zа-я0-9]/g, "");
 }
-
-// Riot Data Dragon item IDs provide a fallback for legacy Russian item names.
-const itemImageIds = {
-  "Клинок падшего короля": 3153,
-  "Мучения Лиандри": 6653,
-  "Песочные часы Жони": 3157,
-  "Ангел-хранитель": 3026,
-  "Посох архангела": 3003,
-  "Клинок ярости Гинсу": 3124,
-  "Смерть Разума": 3091,
-  "Затмение": 6692,
-  "Сила триединства": 3078,
-  "Край ночи": 3814,
-  "Шипованный доспех": 3075,
-  "Мореллономикон": 3165,
-  "Шляпа Рабадона": 3089,
-  "Поклон лорда Доминика": 3036,
-  "Сборщик долгов": 6676,
-  "Сумрачный клинок Драктарра": 6691,
-  "Сердце стали": 3084,
-  "Призрачный танцор": 3046,
-  "Посох Бездны": 3135
-};
 
 async function getChampions() {
   if (Date.now() - championCache.at < 6 * 60 * 60 * 1000) return championCache.names;
@@ -85,15 +59,19 @@ async function getChampions() {
     try {
       const itemData = await fetch(`https://ddragon.leagueoflegends.com/cdn/${version}/data/ru_RU/item.json`).then(r => r.json());
       const itemImages = {};
+      const itemNames = [];
       for (const item of Object.values(itemData.data || {})) {
-        if (item.name && item.image?.full) {
+        const isNeutralCategory = (item.tags || []).some(tag => ["Boots", "Consumable", "Trinket"].includes(tag));
+        const isSummonersRiftItem = item.maps?.["11"] === true;
+        if (isNeutralCategory && isSummonersRiftItem && item.gold?.purchasable && item.name && item.image?.full) {
+          itemNames.push(item.name);
           itemImages[normalizeTargetName(item.name)] = `https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${item.image.full}`;
         }
       }
-      itemCache = { at: Date.now(), images: itemImages };
+      itemCache = { at: Date.now(), images: itemImages, names: itemNames.length ? itemNames.sort((a,b) => a.localeCompare(b, "ru")) : fallbackItems };
     } catch (itemError) {
       console.warn("Не удалось загрузить список иконок предметов Data Dragon.");
-      itemCache = { at: Date.now(), images: {} };
+      itemCache = { at: Date.now(), images: {}, names: fallbackItems };
     }
   } catch (e) {
     console.warn("Не удалось обновить список чемпионов Data Dragon; используется встроенный список.");
@@ -108,10 +86,7 @@ function getTargetImage(category, target) {
   const exact = itemCache.images[normalizeTargetName(target)];
   if (exact) return exact;
 
-  const itemId = itemImageIds[target];
-  return championCache.version && itemId
-    ? `https://ddragon.leagueoflegends.com/cdn/${championCache.version}/img/item/${itemId}.png`
-    : null;
+  return null;
 }
 function makeCode() {
   let code;
@@ -146,7 +121,7 @@ function choose(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 function pickTarget(category, champions) {
-  const source = category === "items" ? items : champions;
+  const source = category === "items" ? itemCache.names : champions;
   return choose(source);
 }
 function removePlayer(room, socketId) {
