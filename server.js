@@ -252,7 +252,7 @@ io.on("connection", socket => {
     ack({ ok: true });
   });
 
-  socket.on("game:passTurn", (ack = () => {}) => {
+  socket.on("game:passTurn", (_payload, ack = () => {}) => {
     const room = getRoomBySocket(socket);
     if (!room || room.phase !== "playing") return ack({ ok: false, error: "Сейчас нельзя передать ход." });
     if (socket.id !== room.turnOrder[room.turnIndex]) return ack({ ok: false, error: "Сейчас не твой ход." });
