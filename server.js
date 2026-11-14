@@ -220,7 +220,7 @@ io.on("connection", socket => {
     ack({ ok: true });
   });
 
-  socket.on("game:start", async (ack = () => {}) => {
+  socket.on("game:start", async (_payload, ack = () => {}) => {
     const room = getRoomBySocket(socket);
     if (!room) return ack({ ok: false, error: "Комната не найдена." });
     if (socket.id !== room.hostId) return ack({ ok: false, error: "Начать раунд может только ведущий." });
@@ -305,7 +305,7 @@ io.on("connection", socket => {
     ack({ ok: true, correct });
   });
 
-  socket.on("game:next", (ack = () => {}) => {
+  socket.on("game:next", (_payload, ack = () => {}) => {
     const room = getRoomBySocket(socket);
     if (!room || socket.id !== room.hostId) return ack({ ok: false, error: "Только ведущий может начать следующий раунд." });
     room.phase = "lobby";
