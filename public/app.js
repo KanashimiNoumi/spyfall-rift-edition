@@ -37,10 +37,12 @@ function renderRoom() {
   const isHost = room.hostId === socket.id;
   $("categorySelect").disabled = !isHost;
   $("spiesSelect").disabled = !isHost;
+  $("roundsSelect").disabled = !isHost;
   $("startBtn").classList.toggle("hidden", !isHost);
   $("startBtn").disabled = room.players.length < 3;
   $("categorySelect").value = room.settings.category;
   $("spiesSelect").value = String(room.settings.spies);
+  $("roundsSelect").value = String(room.settings.rounds || 4);
 }
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -48,7 +50,7 @@ function escapeHtml(s) {
 async function createRoom() {
   const name = prompt("Как тебя зовут в игре?");
   if (!name) return;
-  const res = await ackEmit("room:create", {name, settings:{category:"champions",spies:1}});
+  const res = await ackEmit("room:create", {name, settings:{category:"champions",spies:1,rounds:4}});
   if (!res.ok) return toast(res.error);
   room = res.room; show("roomView"); renderRoom();
 }
@@ -64,11 +66,17 @@ $("joinBtn").onclick = async () => {
 $("joinCode").addEventListener("input", e => e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,5));
 $("categorySelect").onchange = () => updateSettings();
 $("spiesSelect").onchange = () => updateSettings();
+$("roundsSelect").onchange = () => updateSettings();
 async function updateSettings() {
   // Settings are changed by the host and synchronized through a dedicated server event.
-  const res = await ackEmit("room:settings", {category:$("categorySelect").value,spies:Number($("spiesSelect").value)});
+  const res = await ackEmit("room:settings", {category:$("categorySelect").value,spies:Number($("spiesSelect").value),rounds:Number($("roundsSelect").value)});
   if (!res.ok) toast(res.error);
 }
+$("passTurnBtn").onclick = async () => {
+  const res = await ackEmit("game:passTurn");
+  if (!res.ok) toast(res.error);
+};
+
 $("startBtn").onclick = async () => {
   setError("roomError");
   const res = await ackEmit("game:start");
@@ -99,7 +107,7 @@ $("brandHome").onclick = e => { if(room) { e.preventDefault(); toast("Снача
 socket.on("room:update", data => {
   if (!room || room.code === data.code) { room = data; renderRoom(); }
   if (data.phase === "lobby" && $("resultView").classList.contains("hidden") === false) show("roomView");
-  if (data.phase === "playing" && myRole) renderGame();
+  if ((data.phase === "playing" || data.phase === "voting") && myRole) renderGame();
 });
 socket.on("game:role", data => {
   myRole = data; hasVoted=false; latestResult=null; spyGuessDone=false;
@@ -116,6 +124,17 @@ socket.on("game:role", data => {
 });
 function renderGame() {
   if (!room) return;
+  const votingStarted = room.phase === "voting";
+  $("votePanel").classList.toggle("hidden", !votingStarted);
+  $("turnPanel").classList.toggle("hidden", votingStarted);
+  $("completedRounds").textContent = String(room.completedRounds || 0);
+  $("totalRounds").textContent = String(room.settings.rounds || 4);
+  const isMyTurn = room.currentTurnPlayerId === socket.id && !votingStarted;
+  $("passTurnBtn").classList.toggle("hidden", !isMyTurn);
+  $("passTurnBtn").disabled = !isMyTurn;
+  const currentPlayer = room.players.find(p => p.id === room.currentTurnPlayerId);
+  $("turnStatus").textContent = votingStarted ? "Все круги завершены. Голосуйте!" :
+    isMyTurn ? "Сейчас твой ход." : `Ход игрока: ${currentPlayer?.name || "—"}`;
   $("voteProgress").textContent = `${room.votes || 0} / ${room.players.length} голосов`;
   $("voteList").innerHTML = room.players.filter(p => p.id !== socket.id).map(p => `
     <button class="vote-btn ${room.voted?.includes(socket.id) ? "selected" : ""}" data-id="${p.id}" ${hasVoted || room.voted?.includes(socket.id) ? "disabled":""}>

@@ -60,6 +60,7 @@
           <small>ПАРАМЕТРЫ МАТЧА</small><h2>Настройки игры</h2>
           <label>Категория секрета<select id="categorySelect"><option value="champions">Чемпионы</option><option value="items">Предметы</option></select></label>
           <label>Количество шпионов<select id="spiesSelect"><option value="1">1 шпион</option><option value="2">2 шпиона</option><option value="3">3 шпиона</option></select></label>
+          <label>Количество кругов<select id="roundsSelect"><option value="3">3 круг</option><option value="4" selected>4 кругов</option><option value="5">5 кругов</option><option value="6">6 кругов</option><option value="7">7 кругов</option><option value="8">8 кругов</option><option value="9">9 кругов</option><option value="10">10 кругов</option></select></label>
           <p class="hint">Настройки меняет создатель комнаты. Для старта нужно минимум 3 игрока.</p>
           <button class="btn btn-gold full" id="startBtn">Начать раунд <span>✦</span></button>
           <p class="error" id="roomError"></p>
@@ -78,11 +79,15 @@
         <div class="secret-wrap" id="secretWrap"><small>СЕКРЕТНЫЙ ОБЪЕКТ</small><img id="secretImage" class="secret-image" alt="" hidden><strong id="secretName">---</strong><span id="secretCategory">LEAGUE OF LEGENDS</span></div>
         <div class="spy-hint hidden" id="spyHint">Выясни загаданного персонажа или предмет, слушай остальных и попытайся не спалиться!</div>
       </div>
-      <div class="game-instructions panel">
-        <div><small>КАК ИГРАТЬ</small><p>Задавайте вопросы по очереди. Отвечайте так, чтобы свои поняли, что вы не шпион, но не раскрывайте секрет напрямую.</p></div>
-        <div class="turn-mark">01 <span>/</span> ASK</div>
+      <div class="game-instructions panel" id="turnPanel">
+        <div><small>КАК ИГРАТЬ</small><p>Задавайте вопросы по очереди. Отвечайте так, чтобы свои поняли, что вы не шпион, но не раскрывайте секрет напрямую.</p>
+          <p class="turn-status" id="turnStatus">Ожидание хода…</p>
+          <p class="hint">Завершено кругов: <strong id="completedRounds">0</strong> / <strong id="totalRounds">4</strong></p>
+          <button class="btn btn-gold" id="passTurnBtn">Передать ход <span>↗</span></button>
+        </div>
+        <div class="turn-mark">TURN <span>↻</span></div>
       </div>
-      <div class="panel vote-panel">
+      <div class="panel vote-panel hidden" id="votePanel">
         <div class="panel-head"><div><small>ФИНАЛЬНОЕ РЕШЕНИЕ</small><h2>Кто здесь шпион?</h2></div><span class="vote-progress" id="voteProgress">0 голосов</span></div>
         <div id="voteList" class="vote-list"></div>
         <p class="hint">Обсудите подозрения в голосовом чате, затем каждый выбирает одного игрока.</p>

@@ -104,7 +104,9 @@ function publicRoom(room) {
     phase: room.phase,
     round: room.round,
     votes: room.votes.size,
-    voted: [...room.votes.keys()]
+    voted: [...room.votes.keys()],
+    currentTurnPlayerId: room.turnOrder?.[room.turnIndex] || null,
+    completedRounds: room.completedRounds || 0
   };
 }
 function emitRoom(room) {
@@ -125,7 +127,21 @@ function pickTarget(category, champions) {
   return choose(source);
 }
 function removePlayer(room, socketId) {
+  const previousOrder = room.turnOrder || [];
+  const previousIndex = room.turnIndex || 0;
+  const wasCurrent = previousOrder[previousIndex] === socketId;
   room.players.delete(socketId);
+  if (previousOrder.length) {
+    room.turnOrder = previousOrder.filter(id => id !== socketId && room.players.has(id));
+    if (room.turnOrder.length) {
+      if (wasCurrent) room.turnIndex = previousIndex % room.turnOrder.length;
+      else {
+        const currentId = previousOrder[previousIndex];
+        const nextIndex = room.turnOrder.indexOf(currentId);
+        room.turnIndex = nextIndex < 0 ? 0 : nextIndex;
+      }
+    } else room.turnIndex = 0;
+  }
   room.votes.delete(socketId);
   for (const [voter, target] of room.votes.entries()) {
     if (target === socketId) room.votes.delete(voter);
@@ -141,6 +157,9 @@ function removePlayer(room, socketId) {
     room.phase = "lobby";
     room.target = null;
     room.spyIds = [];
+    room.turnOrder = [];
+    room.turnIndex = 0;
+    room.completedRounds = 0;
     room.votes.clear();
     for (const p of room.players.values()) p.role = null;
     io.to(room.code).emit("game:notice", "Игроков стало меньше трёх. Раунд остановлен.");
@@ -157,9 +176,11 @@ io.on("connection", socket => {
       code, hostId: socket.id, players: new Map(),
       settings: {
         category: ["champions","items"].includes(settings?.category) ? settings.category : "champions",
-        spies: Math.max(1, Math.min(3, Number(settings?.spies) || 1))
+        spies: Math.max(1, Math.min(3, Number(settings?.spies) || 1)),
+        rounds: Math.max(3, Math.min(10, Number(settings?.rounds) || 4))
       },
-      phase: "lobby", round: 0, target: null, spyIds: [], votes: new Map()
+      phase: "lobby", round: 0, target: null, spyIds: [], votes: new Map(),
+      turnOrder: [], turnIndex: 0, completedRounds: 0
     };
     room.players.set(socket.id, { id: socket.id, name, role: null });
     rooms.set(code, room);
@@ -187,13 +208,14 @@ io.on("connection", socket => {
     emitRoom(room);
   });
 
-  socket.on("room:settings", ({ category, spies } = {}, ack = () => {}) => {
+  socket.on("room:settings", ({ category, spies, rounds } = {}, ack = () => {}) => {
     const room = getRoomBySocket(socket);
     if (!room) return ack({ ok: false, error: "Комната не найдена." });
     if (socket.id !== room.hostId) return ack({ ok: false, error: "Настройки меняет только ведущий." });
     if (room.phase !== "lobby") return ack({ ok: false, error: "Настройки нельзя менять во время раунда." });
     if (["champions","items"].includes(category)) room.settings.category = category;
     if (Number.isInteger(Number(spies))) room.settings.spies = Math.max(1, Math.min(3, Number(spies)));
+    if (Number.isInteger(Number(rounds))) room.settings.rounds = Math.max(3, Math.min(10, Number(rounds)));
     emitRoom(room);
     ack({ ok: true });
   });
@@ -212,6 +234,9 @@ io.on("connection", socket => {
     const targetImage = getTargetImage(room.settings.category, room.target);
     room.phase = "playing";
     room.round += 1;
+    room.turnOrder = [...room.players.keys()];
+    room.turnIndex = 0;
+    room.completedRounds = 0;
     room.votes.clear();
     for (const p of room.players.values()) p.role = room.spyIds.includes(p.id) ? "spy" : "player";
     for (const p of room.players.values()) {
@@ -227,9 +252,23 @@ io.on("connection", socket => {
     ack({ ok: true });
   });
 
+  socket.on("game:passTurn", (ack = () => {}) => {
+    const room = getRoomBySocket(socket);
+    if (!room || room.phase !== "playing") return ack({ ok: false, error: "Сейчас нельзя передать ход." });
+    if (socket.id !== room.turnOrder[room.turnIndex]) return ack({ ok: false, error: "Сейчас не твой ход." });
+    room.turnIndex += 1;
+    if (room.turnIndex >= room.turnOrder.length) {
+      room.turnIndex = 0;
+      room.completedRounds += 1;
+      if (room.completedRounds >= room.settings.rounds) room.phase = "voting";
+    }
+    emitRoom(room);
+    ack({ ok: true, phase: room.phase, completedRounds: room.completedRounds });
+  });
+
   socket.on("game:vote", ({ targetId } = {}, ack = () => {}) => {
     const room = getRoomBySocket(socket);
-    if (!room || room.phase !== "playing") return ack({ ok: false, error: "Сейчас нельзя голосовать." });
+    if (!room || room.phase !== "voting") return ack({ ok: false, error: "Голосование ещё не началось." });
     if (!room.players.has(socket.id)) return ack({ ok: false, error: "Ты не в комнате." });
     if (!room.players.has(targetId) || targetId === socket.id) return ack({ ok: false, error: "Выбери другого игрока." });
     room.votes.set(socket.id, targetId);
