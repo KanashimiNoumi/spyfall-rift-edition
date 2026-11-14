@@ -1,8 +1,6 @@
-
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
@@ -13,7 +11,6 @@ app.use(express.static("public"));
 
 const rooms = new Map();
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
 const fallbackChampions = [
   "Аатрокс","Акали","Акшан","Алистар","Амбесса","Амуму","Анивия","Анни","Афелий",
   "Ари","Аурелион Сол","Аурора","Азир","Бард","Бел'Вет","Блицкранк","Брайер","Брэнд",
@@ -34,7 +31,6 @@ const fallbackChampions = [
   "Ксин Жао","Ясуо","Йone","Ёрик","Юми","Заахен","Зак","Зед","Зери","Зиггс","Зилеан",
   "Зои","Зыra"
 ];
-
 const items = [
   "Клинок падшего короля","Мучения Лиандри","Песочные часы Жони","Ангел-хранитель",
   "Посох архангела","Клинок ярости Гинсу","Смерть Разума","Затмение","Сила триединства",
@@ -44,7 +40,6 @@ const items = [
 ];
 
 let championCache = { at: 0, names: fallbackChampions };
-
 async function getChampions() {
   if (Date.now() - championCache.at < 6 * 60 * 60 * 1000) return championCache.names;
   try {
@@ -58,7 +53,6 @@ async function getChampions() {
   }
   return championCache.names;
 }
-
 function makeCode() {
   let code;
   do {
@@ -66,7 +60,6 @@ function makeCode() {
   } while (rooms.has(code));
   return code;
 }
-
 function publicRoom(room) {
   return {
     code: room.code,
@@ -79,29 +72,23 @@ function publicRoom(room) {
     voted: [...room.votes.keys()]
   };
 }
-
 function emitRoom(room) {
   io.to(room.code).emit("room:update", publicRoom(room));
 }
-
 function getRoomBySocket(socket) {
   const code = socket.data.roomCode;
   return code ? rooms.get(code) : null;
 }
-
 function cleanName(name) {
   return String(name || "").trim().replace(/[<>]/g, "").slice(0, 18);
 }
-
 function choose(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
-
 function pickTarget(category, champions) {
   const source = category === "items" ? items : champions;
   return choose(source);
 }
-
 function removePlayer(room, socketId) {
   room.players.delete(socketId);
   room.votes.delete(socketId);
@@ -255,19 +242,25 @@ io.on("connection", socket => {
   });
 
   socket.on("room:leave", (...args) => {
-  const ack = args.find(arg => typeof arg === "function");
-
-  const room = getRoomBySocket(socket);
-  if (!room) {
+    const ack = args.find(arg => typeof arg === "function");
+    const room = getRoomBySocket(socket);
+    if (!room) {
+      if (ack) ack({ ok: true });
+      return;
+    }
+    socket.leave(room.code);
+    socket.data.roomCode = null;
+    removePlayer(room, socket.id);
     if (ack) ack({ ok: true });
-    return;
-  }
+  });
 
-  socket.leave(room.code);
-  socket.data.roomCode = null;
-  removePlayer(room, socket.id);
-
-  if (ack) ack({ ok: true });
- });
+  socket.on("disconnect", () => {
+    const room = getRoomBySocket(socket);
+    if (room) {
+      socket.data.roomCode = null;
+      removePlayer(room, socket.id);
+    }
+  });
+});
 
 server.listen(PORT, () => console.log(`Spyfall: Rift Edition running on http://localhost:${PORT}`));
