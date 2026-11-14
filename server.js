@@ -39,7 +39,38 @@ const items = [
   "Призрачный танцор","Посох Бездны"
 ];
 
-let championCache = { at: 0, names: fallbackChampions, images: {} };
+let championCache = { at: 0, names: fallbackChampions, images: {}, version: null };
+let itemCache = { at: 0, images: {} };
+
+function normalizeTargetName(value) {
+  return String(value || "").toLocaleLowerCase("ru")
+    .replace(/ё/g, "е")
+    .replace(/[^a-zа-я0-9]/g, "");
+}
+
+// Riot Data Dragon item IDs provide a fallback for legacy Russian item names.
+const itemImageIds = {
+  "Клинок падшего короля": 3153,
+  "Мучения Лиандри": 6653,
+  "Песочные часы Жони": 3157,
+  "Ангел-хранитель": 3026,
+  "Посох архангела": 3003,
+  "Клинок ярости Гинсу": 3124,
+  "Смерть Разума": 3091,
+  "Затмение": 6692,
+  "Сила триединства": 3078,
+  "Край ночи": 3814,
+  "Шипованный доспех": 3075,
+  "Мореллономикон": 3165,
+  "Шляпа Рабадона": 3089,
+  "Поклон лорда Доминика": 3036,
+  "Сборщик долгов": 6676,
+  "Сумрачный клинок Драктарра": 6691,
+  "Сердце стали": 3084,
+  "Призрачный танцор": 3046,
+  "Посох Бездны": 3135
+};
+
 async function getChampions() {
   if (Date.now() - championCache.at < 6 * 60 * 60 * 1000) return championCache.names;
   try {
@@ -49,14 +80,38 @@ async function getChampions() {
     const champions = Object.values(data.data);
     const names = champions.map(c => c.name).sort((a,b) => a.localeCompare(b, "ru"));
     const images = Object.fromEntries(champions.map(c => [c.name, `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${c.image.full}`]));
-    if (names.length) championCache = { at: Date.now(), names, images };
+    if (names.length) championCache = { at: Date.now(), names, images, version };
+
+    try {
+      const itemData = await fetch(`https://ddragon.leagueoflegends.com/cdn/${version}/data/ru_RU/item.json`).then(r => r.json());
+      const itemImages = {};
+      for (const item of Object.values(itemData.data || {})) {
+        if (item.name && item.image?.full) {
+          itemImages[normalizeTargetName(item.name)] = `https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${item.image.full}`;
+        }
+      }
+      itemCache = { at: Date.now(), images: itemImages };
+    } catch (itemError) {
+      console.warn("Не удалось загрузить список иконок предметов Data Dragon.");
+      itemCache = { at: Date.now(), images: {} };
+    }
   } catch (e) {
     console.warn("Не удалось обновить список чемпионов Data Dragon; используется встроенный список.");
   }
   return championCache.names;
 }
-function getChampionImage(category, target) {
-  return category === "champions" ? (championCache.images[target] || null) : null;
+
+function getTargetImage(category, target) {
+  if (category === "champions") return championCache.images[target] || null;
+  if (category !== "items") return null;
+
+  const exact = itemCache.images[normalizeTargetName(target)];
+  if (exact) return exact;
+
+  const itemId = itemImageIds[target];
+  return championCache.version && itemId
+    ? `https://ddragon.leagueoflegends.com/cdn/${championCache.version}/img/item/${itemId}.png`
+    : null;
 }
 function makeCode() {
   let code;
@@ -179,7 +234,7 @@ io.on("connection", socket => {
     room.spyIds = shuffled.slice(0, spiesCount);
     const champions = await getChampions();
     room.target = pickTarget(room.settings.category, champions);
-    const targetImage = getChampionImage(room.settings.category, room.target);
+    const targetImage = getTargetImage(room.settings.category, room.target);
     room.phase = "playing";
     room.round += 1;
     room.votes.clear();
@@ -216,7 +271,7 @@ io.on("connection", socket => {
         ...room.result,
         spyNames: room.spyIds.map(id => room.players.get(id)?.name).filter(Boolean),
         target: room.target,
-        targetImage: getChampionImage(room.settings.category, room.target),
+        targetImage: getTargetImage(room.settings.category, room.target),
         votedOutName: room.result.votedOut ? room.players.get(room.result.votedOut)?.name : null,
         category: room.settings.category
       });
