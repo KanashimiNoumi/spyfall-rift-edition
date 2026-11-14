@@ -50,3 +50,14 @@ footer{height:54px;border-top:1px solid rgba(200,170,110,.1);display:flex;align-
   .invite-link-value{width:100%}
   .invite-actions{justify-content:flex-start;width:100%}
 }
+
+/* Match pause overlay */
+.pause-overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:20px;background:rgba(3,7,14,.82);backdrop-filter:blur(7px)}
+.pause-card{width:min(440px,100%);padding:30px;background:linear-gradient(145deg,#17243a,#0b1422);border:1px solid rgba(200,170,110,.55);box-shadow:0 25px 90px rgba(0,0,0,.55);text-align:center}
+.pause-symbol{font:700 36px Cinzel;color:var(--gold);margin-bottom:10px}
+.pause-card>small{font-size:9px;letter-spacing:2px;color:var(--gold)}
+.pause-card h2{margin:10px 0;font-size:27px}
+.pause-card p{color:#b7c2d2;font-size:12px;line-height:1.7}
+.pause-timer{color:var(--gold2)!important;font-weight:700}
+.player-disconnected{opacity:.55}
+.player-offline{font-size:8px;letter-spacing:1px;color:#ffb18b}
