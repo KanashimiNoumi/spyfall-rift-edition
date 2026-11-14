@@ -281,6 +281,7 @@ io.on("connection", socket => {
     room.turnIndex = 0;
     room.completedRounds = 0;
     room.votes.clear();
+    room.spyGuessResult = null;
     for (const p of room.players.values()) p.role = room.spyIds.includes(p.id) ? "spy" : "player";
     for (const p of room.players.values()) {
       io.to(p.id).emit("game:role", {
@@ -375,6 +376,7 @@ io.on("connection", socket => {
     room.spyIds = [];
     room.votes.clear();
     room.result = null;
+    room.spyGuessResult = null;
     for (const p of room.players.values()) p.role = null;
     emitRoom(room);
     ack({ ok: true });
