@@ -131,8 +131,11 @@ function shuffle(list) {
   return result;
 }
 function pickTarget(category, champions) {
-  const source = category === "items" ? itemCache.names : champions;
-  return choose(source);
+  const actualCategory = category === "all"
+    ? (Math.random() < 0.5 ? "champions" : "items")
+    : category;
+  const source = actualCategory === "items" ? itemCache.names : champions;
+  return { target: choose(source), category: actualCategory };
 }
 function removePlayer(room, socketId) {
   const previousOrder = room.turnOrder || [];
@@ -183,7 +186,7 @@ io.on("connection", socket => {
     const room = {
       code, hostId: socket.id, players: new Map(),
       settings: {
-        category: ["champions","items"].includes(settings?.category) ? settings.category : "champions",
+        category: ["champions","items","all"].includes(settings?.category) ? settings.category : "champions",
         spies: Math.max(1, Math.min(3, Number(settings?.spies) || 1)),
         rounds: Math.max(3, Math.min(10, Number(settings?.rounds) || 4))
       },
@@ -245,8 +248,8 @@ io.on("connection", socket => {
     emitRoom(room);
     if (room.phase === "playing" || room.phase === "voting") {
       socket.emit("game:role", { role: player.role, target: player.role === "spy" ? null : room.target,
-        targetImage: player.role === "spy" ? null : getTargetImage(room.settings.category, room.target),
-        category: room.settings.category, round: room.round });
+        targetImage: player.role === "spy" ? null : getTargetImage(room.targetCategory || room.settings.category, room.target),
+        category: room.targetCategory || room.settings.category, round: room.round });
     } else if (room.phase === "reveal") {
       const resultData = {
         ...room.result,
@@ -267,7 +270,7 @@ io.on("connection", socket => {
     if (!room) return ack({ ok: false, error: "Комната не найдена." });
     if (socket.id !== room.hostId) return ack({ ok: false, error: "Настройки меняет только ведущий." });
     if (room.phase !== "lobby") return ack({ ok: false, error: "Настройки нельзя менять во время раунда." });
-    if (["champions","items"].includes(category)) room.settings.category = category;
+    if (["champions","items","all"].includes(category)) room.settings.category = category;
     if (Number.isInteger(Number(spies))) room.settings.spies = Math.max(1, Math.min(3, Number(spies)));
     if (Number.isInteger(Number(rounds))) room.settings.rounds = Math.max(3, Math.min(10, Number(rounds)));
     emitRoom(room);
