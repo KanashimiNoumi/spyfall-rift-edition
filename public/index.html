@@ -24,6 +24,7 @@
         <div class="eyebrow"><span></span> THE RIFT IS WATCHING</div>
         <h1>Среди вас<br><em>есть шпион.</em></h1>
         <p class="lead">Все знают секретного чемпиона. Кроме одного.<br>Задавай вопросы, не выдавай себя и найди шпиона.</p>
+        <label class="player-name-label">Твоё имя<input id="playerName" maxlength="18" placeholder="Например, TeemoMain" autocomplete="nickname"></label>
         <div class="hero-actions">
           <button class="btn btn-gold" id="createBtn">Создать комнату <span>↗</span></button>
           <button class="btn btn-outline" id="showJoinBtn">Войти по коду</button>
@@ -38,7 +39,6 @@
       </div>
       <div class="join-panel hidden" id="joinPanel">
         <div class="panel-head"><div><small>ВОЙТИ В ИГРУ</small><h2>Присоединиться</h2></div><button class="icon-btn" id="closeJoin" aria-label="Закрыть">×</button></div>
-        <label>Твоё имя<input id="joinName" maxlength="18" placeholder="Например, TeemoMain"></label>
         <label>Код комнаты<input id="joinCode" maxlength="5" placeholder="ABCDE" class="code-input"></label>
         <button class="btn btn-gold full" id="joinBtn">Войти в комнату</button>
         <p class="error" id="joinError"></p>
