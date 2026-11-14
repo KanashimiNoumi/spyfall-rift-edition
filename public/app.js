@@ -14,6 +14,14 @@ function setError(id, message="") { $(id).textContent = message; }
 function ackEmit(event, payload={}) {
   return new Promise(resolve => socket.emit(event, payload, result => resolve(result || {ok:false,error:"Нет ответа сервера."})));
 }
+function setTargetImage(id, url, name) {
+  const image = $(id);
+  if (!url) { image.removeAttribute("src"); image.hidden = true; return; }
+  image.src = url;
+  image.alt = name || "";
+  image.hidden = false;
+  image.onerror = () => { image.hidden = true; };
+}
 function categoryName(key) {
   return ({champions:"ЧЕМПИОН LEAGUE OF LEGENDS",items:"ПРЕДМЕТ LEAGUE OF LEGENDS"})[key] || "LEAGUE OF LEGENDS";
 }
@@ -102,6 +110,7 @@ socket.on("game:role", data => {
   $("secretWrap").classList.toggle("hidden", data.role === "spy");
   $("spyHint").classList.toggle("hidden", data.role !== "spy");
   $("secretName").textContent = data.target || "";
+  setTargetImage("secretImage", data.targetImage, data.target);
   $("secretCategory").textContent = categoryName(data.category);
   renderGame(); show("gameView");
 });
@@ -128,6 +137,7 @@ socket.on("game:result", result => {
     result.caught ? `${result.votedOutName} оказался шпионом. Хорошая работа, призыватели.` :
     `${result.votedOutName || "Никто"} был выбран, но шпион остался среди вас.`;
   $("resultTarget").textContent = result.target;
+  setTargetImage("resultImage", result.targetImage, result.target);
   $("resultSpies").textContent = result.spyNames.join(", ");
   $("spyGuessBox").classList.toggle("hidden", myRole?.role !== "spy");
   $("guessOutcome").classList.add("hidden");

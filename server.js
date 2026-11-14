@@ -39,19 +39,24 @@ const items = [
   "Призрачный танцор","Посох Бездны"
 ];
 
-let championCache = { at: 0, names: fallbackChampions };
+let championCache = { at: 0, names: fallbackChampions, images: {} };
 async function getChampions() {
   if (Date.now() - championCache.at < 6 * 60 * 60 * 1000) return championCache.names;
   try {
     const versions = await fetch("https://ddragon.leagueoflegends.com/api/versions.json").then(r => r.json());
     const version = versions[0];
     const data = await fetch(`https://ddragon.leagueoflegends.com/cdn/${version}/data/ru_RU/champion.json`).then(r => r.json());
-    const names = Object.values(data.data).map(c => c.name).sort((a,b) => a.localeCompare(b, "ru"));
-    if (names.length) championCache = { at: Date.now(), names };
+    const champions = Object.values(data.data);
+    const names = champions.map(c => c.name).sort((a,b) => a.localeCompare(b, "ru"));
+    const images = Object.fromEntries(champions.map(c => [c.name, `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${c.image.full}`]));
+    if (names.length) championCache = { at: Date.now(), names, images };
   } catch (e) {
     console.warn("Не удалось обновить список чемпионов Data Dragon; используется встроенный список.");
   }
   return championCache.names;
+}
+function getChampionImage(category, target) {
+  return category === "champions" ? (championCache.images[target] || null) : null;
 }
 function makeCode() {
   let code;
@@ -174,6 +179,7 @@ io.on("connection", socket => {
     room.spyIds = shuffled.slice(0, spiesCount);
     const champions = await getChampions();
     room.target = pickTarget(room.settings.category, champions);
+    const targetImage = getChampionImage(room.settings.category, room.target);
     room.phase = "playing";
     room.round += 1;
     room.votes.clear();
@@ -182,6 +188,7 @@ io.on("connection", socket => {
       io.to(p.id).emit("game:role", {
         role: p.role,
         target: p.role === "spy" ? null : room.target,
+        targetImage: p.role === "spy" ? null : targetImage,
         category: room.settings.category,
         round: room.round
       });
@@ -209,6 +216,7 @@ io.on("connection", socket => {
         ...room.result,
         spyNames: room.spyIds.map(id => room.players.get(id)?.name).filter(Boolean),
         target: room.target,
+        targetImage: getChampionImage(room.settings.category, room.target),
         votedOutName: room.result.votedOut ? room.players.get(room.result.votedOut)?.name : null,
         category: room.settings.category
       });
