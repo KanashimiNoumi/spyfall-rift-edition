@@ -155,8 +155,9 @@ socket.on("game:result", result => {
   $("resultText").textContent = result.tie ? "Игроки разделили голоса. Никто не был выбран." :
     result.caught ? `${result.votedOutName} оказался шпионом. Хорошая работа, призыватели.` :
     `${result.votedOutName || "Никто"} был выбран, но шпион остался среди вас.`;
-  $("resultTarget").textContent = result.target;
+  $("resultTarget").textContent = result.target || "";
   setTargetImage("resultImage", result.targetImage, result.target);
+  $("resultSecret").classList.toggle("hidden", myRole?.role === "spy");
   $("resultSpies").textContent = result.spyNames.join(", ");
   $("spyGuessBox").classList.toggle("hidden", myRole?.role !== "spy");
   $("guessOutcome").classList.add("hidden");
@@ -169,9 +170,14 @@ $("spyGuessBtn").onclick = async () => {
   const res = await ackEmit("game:guess",{guess:$("spyGuessInput").value});
   if (!res.ok) return $("guessFeedback").textContent=res.error;
   spyGuessDone=true;
+  $("spyGuessBox").classList.add("hidden");
   $("guessFeedback").textContent = res.correct ? "Верно! Ты вычислил секрет." : "Не угадал. Секрет раскрыт.";
 };
 socket.on("game:spyGuess", data => {
+  $("resultSecret").classList.remove("hidden");
+  $("resultTarget").textContent = data.target;
+  setTargetImage("resultImage", data.targetImage, data.target);
+  $("spyGuessBox").classList.add("hidden");
   $("guessOutcome").classList.remove("hidden");
   $("guessOutcome").textContent = data.correct ? `${data.player} угадал секрет: ${data.target}.` : `${data.player} не смог угадать секрет. Это был: ${data.target}.`;
 });
