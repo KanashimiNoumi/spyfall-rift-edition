@@ -100,7 +100,9 @@ function publicRoom(room) {
   return {
     code: room.code,
     hostId: room.hostId,
-    players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, isHost: p.id === room.hostId })),
+    players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, isHost: p.id === room.hostId, connected: p.connected !== false })),
+    paused: !!room.paused,
+    pauseDeadline: room.pauseDeadline || null,
     settings: room.settings,
     phase: room.phase,
     round: room.round,
@@ -138,6 +140,57 @@ function pickTarget(category, champions) {
   const source = actualCategory === "items" ? itemCache.names : champions;
   return { target: choose(source), category: actualCategory };
 }
+
+function clearPause(room) {
+  if (room.pauseTimer) clearTimeout(room.pauseTimer);
+  room.pauseTimer = null;
+  room.paused = false;
+  room.pauseDeadline = null;
+}
+function finishGameEarly(room, message = "Матч завершён досрочно ведущим.") {
+  clearPause(room);
+  room.phase = "lobby";
+  room.target = null;
+  room.targetCategory = null;
+  room.spyIds = [];
+  room.turnOrder = [];
+  room.turnIndex = 0;
+  room.completedRounds = 0;
+  room.votes.clear();
+  room.result = null;
+  room.spyGuessResult = null;
+  for (const player of room.players.values()) player.role = null;
+  io.to(room.code).emit("game:ended", message);
+  emitRoom(room);
+}
+function pauseGameForDisconnect(room, player) {
+  if (!room || room.phase === "lobby" || !player) return;
+  player.connected = false;
+  if (!room.paused) {
+    room.paused = true;
+    room.pauseDeadline = Date.now() + 15 * 60 * 1000;
+    room.pauseTimer = setTimeout(() => {
+      if (rooms.get(room.code) === room && room.paused) {
+        finishGameEarly(room, "Время на возвращение истекло. Матч завершён, все игроки возвращены в лобби.");
+      }
+    }, 15 * 60 * 1000);
+  }
+  io.to(room.code).emit("game:paused", {
+    message: "Игра на паузе: один или несколько игроков покинули матч.",
+    disconnectedPlayers: [...room.players.values()].filter(p => p.connected === false).map(p => p.name),
+    deadline: room.pauseDeadline
+  });
+  emitRoom(room);
+}
+function resumeGameIfEveryoneReturned(room) {
+  if ([...room.players.values()].some(p => p.connected === false)) return;
+  if (room.paused) {
+    clearPause(room);
+    io.to(room.code).emit("game:resumed", "Все игроки вернулись. Игра продолжается!");
+    emitRoom(room);
+  }
+}
+
 function removePlayer(room, socketId) {
   const previousOrder = room.turnOrder || [];
   const previousIndex = room.turnIndex || 0;
@@ -195,7 +248,7 @@ io.on("connection", socket => {
       turnOrder: [], turnIndex: 0, completedRounds: 0,
       lastSpyIds: [], nextStarterId: socket.id
     };
-    room.players.set(socket.id, { id: socket.id, name, role: null, sessionToken });
+    room.players.set(socket.id, { id: socket.id, name, role: null, sessionToken, connected: true });
     rooms.set(code, room);
     socket.join(code);
     socket.data.roomCode = code;
@@ -214,7 +267,7 @@ io.on("connection", socket => {
     if ([...room.players.values()].some(p => p.name.toLowerCase() === name.toLowerCase())) {
       return ack({ ok: false, error: "Это имя уже занято в комнате." });
     }
-    room.players.set(socket.id, { id: socket.id, name, role: null, sessionToken });
+    room.players.set(socket.id, { id: socket.id, name, role: null, sessionToken, connected: true });
     socket.join(code);
     socket.data.roomCode = code;
     ack({ ok: true, room: publicRoom(room) });
@@ -243,8 +296,10 @@ io.on("connection", socket => {
       if (room.votes.has(oldId)) { const vote = room.votes.get(oldId); room.votes.delete(oldId); room.votes.set(socket.id, vote); }
       for (const [voter, target] of room.votes.entries()) if (target === oldId) room.votes.set(voter, socket.id);
     }
+    player.connected = true;
     socket.join(room.code);
     socket.data.roomCode = room.code;
+    resumeGameIfEveryoneReturned(room);
     ack({ ok: true, room: publicRoom(room) });
     emitRoom(room);
     if (room.phase === "playing" || room.phase === "voting") {
@@ -324,7 +379,7 @@ io.on("connection", socket => {
 
   socket.on("game:passTurn", (_payload, ack = () => {}) => {
     const room = getRoomBySocket(socket);
-    if (!room || room.phase !== "playing") return ack({ ok: false, error: "Сейчас нельзя передать ход." });
+    if (!room || room.phase !== "playing" || room.paused) return ack({ ok: false, error: room?.paused ? "Игра сейчас на паузе." : "Сейчас нельзя передать ход." });
     if (socket.id !== room.turnOrder[room.turnIndex]) return ack({ ok: false, error: "Сейчас не твой ход." });
     room.turnIndex += 1;
     if (room.turnIndex >= room.turnOrder.length) {
@@ -338,7 +393,7 @@ io.on("connection", socket => {
 
   socket.on("game:vote", ({ targetId } = {}, ack = () => {}) => {
     const room = getRoomBySocket(socket);
-    if (!room || room.phase !== "voting") return ack({ ok: false, error: "Голосование ещё не началось." });
+    if (!room || room.phase !== "voting" || room.paused) return ack({ ok: false, error: room?.paused ? "Игра сейчас на паузе." : "Голосование ещё не началось." });
     if (!room.players.has(socket.id)) return ack({ ok: false, error: "Ты не в комнате." });
     if (!room.players.has(targetId) || targetId === socket.id) return ack({ ok: false, error: "Выбери другого игрока." });
     room.votes.set(socket.id, targetId);
@@ -372,7 +427,7 @@ io.on("connection", socket => {
 
   socket.on("game:guess", ({ guess } = {}, ack = () => {}) => {
     const room = getRoomBySocket(socket);
-    if (!room || room.phase !== "reveal" || room.result?.tie || !room.spyIds.includes(socket.id)) {
+    if (!room || room.paused || room.phase !== "reveal" || room.result?.tie || !room.spyIds.includes(socket.id)) {
       return ack({ ok: false, error: "Сейчас нельзя угадывать." });
     }
     const normalized = String(guess || "").trim().toLocaleLowerCase("ru");
@@ -380,6 +435,14 @@ io.on("connection", socket => {
     room.spyGuessResult = { player: room.players.get(socket.id)?.name, correct, target: room.target, targetImage: getTargetImage(room.targetCategory || room.settings.category, room.target), category: room.targetCategory || room.settings.category };
     io.to(room.code).emit("game:spyGuess", room.spyGuessResult);
     ack({ ok: true, correct });
+  });
+
+  socket.on("game:endEarly", (_payload, ack = () => {}) => {
+    const room = getRoomBySocket(socket);
+    if (!room || socket.id !== room.hostId) return ack({ ok: false, error: "Только ведущий может завершить матч." });
+    if (!room.paused) return ack({ ok: false, error: "Матч сейчас не на паузе." });
+    finishGameEarly(room);
+    ack({ ok: true });
   });
 
   socket.on("game:revote", (_payload, ack = () => {}) => {
@@ -425,8 +488,12 @@ io.on("connection", socket => {
     const room = getRoomBySocket(socket);
     if (!room) return;
     const player = room.players.get(socket.id);
-    const token = player?.sessionToken;
     socket.data.roomCode = null;
+    if (room.phase !== "lobby") {
+      pauseGameForDisconnect(room, player);
+      return;
+    }
+    const token = player?.sessionToken;
     setTimeout(() => {
       const currentRoom = rooms.get(room.code);
       const currentPlayer = currentRoom?.players.get(socket.id);
