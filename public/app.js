@@ -30,10 +30,7 @@ function categoryName(key) {
 }
 function renderRoom() {
   if (!room) return;
-  $("roomCodeTitle").textContent = room.code;
   $("inviteCode").textContent = room.code;
-  const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(room.code)}`;
-  $("inviteLinkText").textContent = inviteUrl;
   $("gameRoomCode").textContent = room.code;
   $("playerCount").textContent = `${room.players.length}/10`;
   $("playersList").innerHTML = room.players.map(p => `
@@ -103,13 +100,15 @@ $("copyLinkBtn").onclick = async () => {
   try { await navigator.clipboard.writeText(inviteUrl); toast("Ссылка-приглашение скопирована."); }
   catch { toast(`Ссылка: ${inviteUrl}`); }
 };
-let privacyHidden = false;
+let privacyHidden = true;
+document.body.classList.add("privacy-mode");
+$("privacyIcon").textContent = "◌";
 $("privacyToggle").onclick = () => {
   privacyHidden = !privacyHidden;
   document.body.classList.toggle("privacy-mode", privacyHidden);
   $("privacyIcon").textContent = privacyHidden ? "◌" : "◉";
-  $("privacyToggle").setAttribute("aria-label", privacyHidden ? "Показать код и ссылку" : "Скрыть код и ссылку");
-  $("privacyToggle").title = privacyHidden ? "Показать код и ссылку" : "Скрыть код и ссылку";
+  $("privacyToggle").setAttribute("aria-label", privacyHidden ? "Показать код" : "Скрыть код");
+  $("privacyToggle").title = privacyHidden ? "Показать код" : "Скрыть код";
 };
 async function leaveRoom() {
   if (!room) { show("homeView"); return; }
