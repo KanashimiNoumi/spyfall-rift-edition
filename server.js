@@ -61,9 +61,10 @@ async function getChampions() {
       const itemImages = {};
       const itemNames = [];
       for (const item of Object.values(itemData.data || {})) {
-        const isNeutralCategory = (item.tags || []).some(tag => ["Boots", "Consumable", "Trinket"].includes(tag));
+        // Map 11 is Summoner's Rift (5v5). Exclude items that exist only on ARAM/other maps.
         const isSummonersRiftItem = item.maps?.["11"] === true;
-        if (isNeutralCategory && isSummonersRiftItem && item.gold?.purchasable && item.name && item.image?.full) {
+        const canBeBought = item.gold?.purchasable === true && item.inStore !== false && item.hideFromAll !== true;
+        if (isSummonersRiftItem && canBeBought && item.name && item.image?.full) {
           itemNames.push(item.name);
           itemImages[normalizeTargetName(item.name)] = `https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${item.image.full}`;
         }
