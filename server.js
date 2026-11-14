@@ -170,6 +170,10 @@ function finishGameEarly(room, message = "Матч завершён досроч
 function pauseGameForDisconnect(room, player) {
   if (!room || room.phase === "lobby" || !player) return;
   player.connected = false;
+  if (room.hostId === player.id) {
+    const successor = [...room.players.values()].find(p => p.connected !== false && p.id !== player.id);
+    if (successor) room.hostId = successor.id;
+  }
   if (!room.paused) {
     room.paused = true;
     room.pauseDeadline = Date.now() + 15 * 60 * 1000;
