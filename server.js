@@ -160,6 +160,10 @@ function finishGameEarly(room, message = "Матч завершён досроч
   room.result = null;
   room.spyGuessResult = null;
   for (const player of room.players.values()) player.role = null;
+  for (const [id, player] of room.players.entries()) {
+    if (player.connected === false) room.players.delete(id);
+  }
+  if (!room.players.has(room.hostId)) room.hostId = [...room.players.keys()][0] || null;
   io.to(room.code).emit("game:ended", message);
   emitRoom(room);
 }
@@ -475,6 +479,14 @@ io.on("connection", socket => {
     const ack = args.find(arg => typeof arg === "function");
     const room = getRoomBySocket(socket);
     if (!room) {
+      if (ack) ack({ ok: true });
+      return;
+    }
+    if (room.phase !== "lobby") {
+      const player = room.players.get(socket.id);
+      pauseGameForDisconnect(room, player);
+      socket.leave(room.code);
+      socket.data.roomCode = null;
       if (ack) ack({ ok: true });
       return;
     }
