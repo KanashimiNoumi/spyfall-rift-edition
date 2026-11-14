@@ -152,20 +152,20 @@ socket.on("game:result", result => {
   latestResult=result; hasVoted=false;
   $("resultSymbol").textContent = result.caught ? "✦" : "☽";
   $("resultTitle").textContent = result.tie ? "Ничья голосов" : result.caught ? "Шпион раскрыт!" : "Шпион избежал разоблачения";
-  $("resultText").textContent = result.tie ? "Игроки разделили голоса. Никто не был выбран." :
+  $("resultText").textContent = result.tie ? "Игроки не смогли решиться. Никто не был выбран." :
     result.caught ? `${result.votedOutName} оказался шпионом. Хорошая работа, призыватели.` :
     `${result.votedOutName || "Никто"} был выбран, но шпион остался среди вас.`;
   $("resultTarget").textContent = result.target || "";
   setTargetImage("resultImage", result.targetImage, result.target);
   $("resultSecret").classList.toggle("hidden", result.tie || myRole?.role === "spy");
-  $("resultSpies").textContent = result.spyNames.join(", ");
+  $("resultSpies").textContent = result.tie ? "" : result.spyNames.join(", ");
+  $("resultSpiesPanel").classList.toggle("hidden", result.tie);
   $("spyGuessBox").classList.toggle("hidden", result.tie || myRole?.role !== "spy");
   $("revoteBtn").classList.toggle("hidden", !result.tie || room?.hostId !== socket.id);
   $("nextRoundBtn").classList.toggle("hidden", result.tie || room?.hostId !== socket.id);
   $("guessOutcome").classList.add("hidden");
   $("spyGuessInput").value = "";
   $("guessFeedback").textContent = "";
-  $("nextRoundBtn").classList.toggle("hidden", room?.hostId !== socket.id);
   show("resultView");
 });
 $("spyGuessBtn").onclick = async () => {
