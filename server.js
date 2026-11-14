@@ -281,14 +281,18 @@ io.on("connection", socket => {
       const caught = leaders.length === 1 && room.spyIds.includes(leaders[0]);
       room.phase = "reveal";
       room.result = { caught, votedOut: leaders.length === 1 ? leaders[0] : null, tie: leaders.length > 1 };
-      io.to(room.code).emit("game:result", {
+      const resultData = {
         ...room.result,
         spyNames: room.spyIds.map(id => room.players.get(id)?.name).filter(Boolean),
-        target: room.target,
-        targetImage: getTargetImage(room.settings.category, room.target),
         votedOutName: room.result.votedOut ? room.players.get(room.result.votedOut)?.name : null,
         category: room.settings.category
-      });
+      };
+      const targetImage = getTargetImage(room.settings.category, room.target);
+      for (const player of room.players.values()) {
+        io.to(player.id).emit("game:result", player.role === "spy"
+          ? { ...resultData, target: null, targetImage: null }
+          : { ...resultData, target: room.target, targetImage });
+      }
       emitRoom(room);
     }
     ack({ ok: true });
@@ -301,7 +305,7 @@ io.on("connection", socket => {
     }
     const normalized = String(guess || "").trim().toLocaleLowerCase("ru");
     const correct = normalized === String(room.target).trim().toLocaleLowerCase("ru");
-    io.to(room.code).emit("game:spyGuess", { player: room.players.get(socket.id)?.name, correct, target: room.target });
+    io.to(room.code).emit("game:spyGuess", { player: room.players.get(socket.id)?.name, correct, target: room.target, targetImage: getTargetImage(room.settings.category, room.target), category: room.settings.category });
     ack({ ok: true, correct });
   });
 
