@@ -202,9 +202,9 @@ $("nextRoundBtn").onclick = async () => {
   if (!res.ok) toast(res.error);
 };
 socket.on("game:notice", message => toast(message));
-socket.on("disconnect", () => toast("Соединение потеряно. Пытаемся переподключиться…"));
+socket.on("disconnect", () => { resumeAttempted = false; toast("Соединение потеряно. Пытаемся переподключиться…"); });
 socket.on("connect", async () => {
-  if (resumeAttempted || room) return;
+  if (resumeAttempted) return;
   resumeAttempted = true;
   const res = await ackEmit("room:resume", { sessionToken });
   if (res.ok) { room = res.room; renderRoom(); }
