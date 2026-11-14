@@ -157,9 +157,11 @@ socket.on("game:result", result => {
     `${result.votedOutName || "Никто"} был выбран, но шпион остался среди вас.`;
   $("resultTarget").textContent = result.target || "";
   setTargetImage("resultImage", result.targetImage, result.target);
-  $("resultSecret").classList.toggle("hidden", myRole?.role === "spy");
+  $("resultSecret").classList.toggle("hidden", result.tie || myRole?.role === "spy");
   $("resultSpies").textContent = result.spyNames.join(", ");
-  $("spyGuessBox").classList.toggle("hidden", myRole?.role !== "spy");
+  $("spyGuessBox").classList.toggle("hidden", result.tie || myRole?.role !== "spy");
+  $("revoteBtn").classList.toggle("hidden", !result.tie || room?.hostId !== socket.id);
+  $("nextRoundBtn").classList.toggle("hidden", result.tie || room?.hostId !== socket.id);
   $("guessOutcome").classList.add("hidden");
   $("spyGuessInput").value = "";
   $("guessFeedback").textContent = "";
@@ -180,6 +182,16 @@ socket.on("game:spyGuess", data => {
   $("spyGuessBox").classList.add("hidden");
   $("guessOutcome").classList.remove("hidden");
   $("guessOutcome").textContent = data.correct ? `${data.player} угадал секрет: ${data.target}.` : `${data.player} не смог угадать секрет. Это был: ${data.target}.`;
+});
+$("revoteBtn").onclick = async () => {
+  const res = await ackEmit("game:revote");
+  if (!res.ok) return toast(res.error);
+};
+socket.on("game:revote", () => {
+  hasVoted = false;
+  latestResult = null;
+  show("gameView");
+  renderGame();
 });
 $("nextRoundBtn").onclick = async () => {
   const res = await ackEmit("game:next");
