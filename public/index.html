@@ -122,6 +122,16 @@
         <button class="btn btn-gold full" id="nextRoundBtn">Следующий раунд <span>↗</span></button>
       </div>
     </section>
+    <div id="pauseOverlay" class="pause-overlay hidden" role="alertdialog" aria-live="assertive">
+      <div class="pause-card">
+        <div class="pause-symbol">Ⅱ</div>
+        <small>МАТЧ ПРИОСТАНОВЛЕН</small>
+        <h2>Игра на паузе</h2>
+        <p id="pauseMessage">Один или несколько игроков покинули матч.</p>
+        <p class="pause-timer" id="pauseTimer"></p>
+        <button class="btn btn-gold full hidden" id="endEarlyBtn" type="button">Закончить игру досрочно</button>
+      </div>
+    </div>
     <div id="toast" class="toast"></div>
   </main>
   <footer><span>SPYFALL: RIFT EDITION</span><span>UNOFFICIAL FAN PROJECT · NOT AFFILIATED WITH RIOT GAMES</span></footer>
